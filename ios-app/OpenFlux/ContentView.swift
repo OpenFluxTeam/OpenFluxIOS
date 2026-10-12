@@ -195,7 +195,8 @@ struct ContentView: View {
                   profileID: p.id, onDemand: autoReconnect,
                   nodeAddr: p.nodeAddr ?? "",
                   session: p.sessionSpecs ?? "",
-                  stream: p.isStream)
+                  stream: p.isStream,
+                  debug: debugLog)
     }
 
     /// Оживляет yandex на узле, решая капчу «за узел» в IN-APP сессии (SOCKS в
@@ -1346,7 +1347,10 @@ struct SettingsSheet: View {
 
                 Section("Журнал") {
                     Toggle("Подробный лог", isOn: $debugLog)
-                        .onChange(of: debugLog) { on in OpenFluxSetDebug(on ? 1 : 0) }
+                        .onChange(of: debugLog) { on in
+                            OpenFluxSetDebug(on ? 1 : 0)   // ядро приложения
+                            vpn.setDebug(on)                // и ядро в расширении VPN
+                        }
                     HStack {
                         Button {
                             UIPasteboard.general.string = tunnel.log

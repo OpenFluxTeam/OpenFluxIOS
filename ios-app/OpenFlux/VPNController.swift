@@ -30,7 +30,7 @@ final class VPNController: ObservableObject {
                dns: String, tunnelUDP: Bool, split: String = "",
                directDomains: String = "", profileID: UUID? = nil,
                keySlot: String = "", onDemand: Bool = true, nodeAddr: String = "",
-               session: String = "", stream: Bool = false) {
+               session: String = "", stream: Bool = false, debug: Bool = false) {
         Task {
             let m = manager ?? NETunnelProviderManager()
             let proto = NETunnelProviderProtocol()
@@ -56,6 +56,10 @@ final class VPNController: ObservableObject {
                 "session": session,
                 // "1" = режим без сервера: OpenFluxStartStreamPacketTunnel.
                 "stream": stream ? "1" : "0",
+                // Подробный лог ядра В РАСШИРЕНИИ. Оно — отдельный процесс, и
+                // OpenFluxSetDebug из приложения до него не доходит; без этого
+                // ядро там стояло на LevelDebug (строка на каждый пакет) всегда.
+                "debug": debug ? "1" : "0",
             ]
             m.protocolConfiguration = proto
             m.localizedDescription = "OpenFlux"
@@ -77,6 +81,14 @@ final class VPNController: ObservableObject {
                 self.status = "Error: \(error.localizedDescription)"
             }
         }
+    }
+
+    /// Переключает подробный лог ядра в работающем расширении на лету.
+    func setDebug(_ on: Bool) {
+        guard let s = manager?.connection as? NETunnelProviderSession,
+              s.status != .disconnected, s.status != .invalid,
+              let msg = (on ? "debug1" : "debug0").data(using: .utf8) else { return }
+        try? s.sendProviderMessage(msg) { _ in }
     }
 
     func stop() {

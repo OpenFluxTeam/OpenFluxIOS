@@ -166,6 +166,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             OpenFluxSetEncryption(UnsafeMutablePointer(mutating: k))
         }
 
+        // Уровень лога ядра — ДО старта: Start* выставляет логгер из него, а по
+        // умолчанию ядро в каждом процессе на LevelDebug (строка на пакет). Это
+        // процессор и мусор в памяти на каждом пакете при лимите NE в 50 МБ.
+        OpenFluxSetDebug((conf["debug"] as? String) == "1" ? 1 : 0)
+
         // Куки капчи, пройденной с выключенным туннелем. Отдаём ДО старта, чтобы
         // первый же запрос к документу пошёл с ними и не упёрся в ту же капчу.
         let savedCookies = Secrets.captchaCookies() ?? ""
@@ -383,6 +388,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // The core lives in THIS process, so only the extension can see that a
         // SmartCaptcha is pending — and only it can hand the solved cookies to
         // the transport. The app drives the WebView and relays through here.
+        // Переключатель «Подробный лог» из приложения: действует сразу.
+        case "debug1", "debug0":
+            OpenFluxSetDebug(cmd == "debug1" ? 1 : 0)
+            completionHandler?(Data())
+
         case "remotecaptcha":
             var url = ""
             if let c = OpenFluxRemoteCaptchaPending() {
