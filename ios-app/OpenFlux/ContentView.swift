@@ -781,6 +781,7 @@ struct ContentView: View {
         case "direct": return "arrow.left.arrow.right"
         case "oneme":  return "m.square"
         case "cupsonline": return "chevron.left.forwardslash.chevron.right"
+        case "telemost": return "video"
         default:       return "doc.text"
         }
     }
@@ -796,7 +797,7 @@ struct ContentView: View {
             url = b.isEmpty ? a : "\(a),\(b)"
         case .volga: url = volgaURL.trimmingCharacters(in: .whitespaces)
         // boards появился уже после профилей — легаси-конфига для него не бывает
-        case .boards, .direct, .cupsonline: break
+        case .boards, .direct, .cupsonline, .telemost: break
         case .mail:  url = mailURL.trimmingCharacters(in: .whitespaces)
         case .max:   break
         }
@@ -923,6 +924,10 @@ struct ProfileEditorView: View {
                         TextField("строка комнат из лога узла (base64)", text: $single).autocapitalization(.none).disableAutocorrection(true)
                         Text("Узел печатает её при запуске БЕЗ --url. Ключ шифрования — тот же, что на узле.")
                             .font(.caption2).foregroundColor(.secondary)
+                    case .telemost:
+                        TextField("https://telemost.yandex.ru/j/…", text: $single).autocapitalization(.none).disableAutocorrection(true)
+                        Text("Ссылка на конференцию — та же, что у узла (узлу нужна node-v1.3.0 или новее). Экспериментально: туннель идёт видеопотоком в несколько полос, расширению VPN может не хватить памяти — если отваливается, пришлите журнал.")
+                            .font(.caption2).foregroundColor(.secondary)
                     case .max:
                         TextField("MAX token", text: $maxToken).autocapitalization(.none).disableAutocorrection(true)
                         TextField("MAX user ID", text: $maxUid).keyboardType(.numberPad)
@@ -1008,7 +1013,7 @@ struct ProfileEditorView: View {
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
         switch transport {
         case .yandex: return !url1.trimmingCharacters(in: .whitespaces).isEmpty
-        case .volga, .boards, .mail, .direct, .cupsonline: return !single.trimmingCharacters(in: .whitespaces).isEmpty
+        case .volga, .boards, .mail, .direct, .cupsonline, .telemost: return !single.trimmingCharacters(in: .whitespaces).isEmpty
         case .max: return !maxToken.isEmpty && !maxUid.isEmpty
         }
     }
@@ -1025,7 +1030,7 @@ struct ProfileEditorView: View {
         case .yandex:
             url1 = parts.first ?? ""
             if parts.count > 1 { url2 = parts[1] }
-        case .volga, .boards, .mail, .direct, .cupsonline:
+        case .volga, .boards, .mail, .direct, .cupsonline, .telemost:
             single = parts.first ?? p.url
         case .max: break
         }
@@ -1084,10 +1089,12 @@ struct ProfileEditorView: View {
             transportRaw = TransportKind.mail.rawValue
         } else if s.lowercased().contains("boards.yandex.ru") {
             transportRaw = TransportKind.boards.rawValue
+        } else if s.lowercased().contains("telemost.yandex") {
+            transportRaw = TransportKind.telemost.rawValue
         }
         switch transport {
         case .yandex: url1 = s
-        case .volga, .boards, .mail, .direct, .cupsonline: single = s
+        case .volga, .boards, .mail, .direct, .cupsonline, .telemost: single = s
         case .max: return false
         }
         if name.trimmingCharacters(in: .whitespaces).isEmpty { name = transport.title }
@@ -1108,7 +1115,7 @@ struct ProfileEditorView: View {
             let value = (p.type == "direct" ? p.dial : p.url) ?? ""
             switch transport {
             case .yandex: url1 = value
-            case .volga, .boards, .mail, .direct, .cupsonline: single = value
+            case .volga, .boards, .mail, .direct, .cupsonline, .telemost: single = value
             case .max: break
             }
         }
@@ -1146,7 +1153,7 @@ struct ProfileEditorView: View {
         case .yandex:
             url1 = parsed.urls.first ?? ""
             url2 = parsed.urls.count > 1 ? parsed.urls[1] : ""
-        case .volga, .boards, .mail, .direct, .cupsonline:
+        case .volga, .boards, .mail, .direct, .cupsonline, .telemost:
             single = parsed.urls.first ?? ""
         case .max: break
         }
@@ -1163,7 +1170,7 @@ struct ProfileEditorView: View {
             let a = url1.trimmingCharacters(in: .whitespaces)
             let b = url2.trimmingCharacters(in: .whitespaces)
             url = b.isEmpty ? a : "\(a),\(b)"
-        case .volga, .boards, .mail, .direct, .cupsonline:
+        case .volga, .boards, .mail, .direct, .cupsonline, .telemost:
             url = single.trimmingCharacters(in: .whitespaces)
         case .max:
             url = ""

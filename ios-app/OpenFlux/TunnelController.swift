@@ -9,6 +9,10 @@ enum TransportKind: String, CaseIterable, Identifiable {
     case mail = "mailru"
     case cupsonline = "cupsonline"
     case max = "oneme"
+    /// Яндекс Телемост: туннель идёт видеопотоком через SFU конференции,
+    /// полосами (несколько участников-«гостей» с каждой стороны). Обе стороны
+    /// должны быть на ядре 0.5.0+ (узел node-v1.3.0+). Экспериментальный.
+    case telemost = "telemost"
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -19,11 +23,12 @@ enum TransportKind: String, CaseIterable, Identifiable {
         case .mail:   return "Mail.ru"
         case .cupsonline: return "Cups.online"
         case .max:    return "MAX"
+        case .telemost: return "Яндекс Телемост"
         }
     }
     /// Document-based transports that take a public document URL / weblink.
     /// cupsonline берёт в это же поле не ссылку, а base64-строку комнат из лога узла.
-    var usesDocURL: Bool { self == .yandex || self == .volga || self == .boards || self == .mail || self == .cupsonline }
+    var usesDocURL: Bool { self == .yandex || self == .volga || self == .boards || self == .mail || self == .cupsonline || self == .telemost }
     /// direct берёт в том же поле не ссылку на документ, а host:port узла.
     var usesNodeAddr: Bool { self == .direct }
 }
