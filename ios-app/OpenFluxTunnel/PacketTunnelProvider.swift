@@ -1,4 +1,5 @@
 import NetworkExtension
+import os
 
 /// System VPN entry point. Bridges the device's IP packets to the OpenFlux Go
 /// tun2socks stack (TCP forwarded through the transport; DNS proxied over TCP).
@@ -123,6 +124,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
         let conf = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration ?? [:]
         let transport = (conf["transport"] as? String) ?? "yandex"
+        startDiag(transport: transport)
         let url = (conf["url"] as? String) ?? ""
         // Адрес direct-канала узла (host:port) для session-профиля (direct+doc).
         // Его наличие означает: рабочий носитель — direct, значит Яндекс должен
@@ -223,7 +225,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // Рабочий носитель — yandex-семейство ТОЛЬКО если это чистый yandex/volga/
         // boards без direct-канала. Если есть nodeAddr (session c direct), трафик
         // идёт через direct, и Яндекс надо пускать В туннель (капча «за узел»).
-        let isYandexType = (transport == "yandex" || transport == "volga" || transport == "boards")
+        // Телемост тоже: его медиасервер и TURN — адреса Яндекса (77.88/18,
+        // 37.9.64/18), а сигналинг и DNS — те же, что у доков.
+        let isYandexType = (transport == "yandex" || transport == "volga"
+                            || transport == "boards" || transport == "telemost")
         let yandexFamily = isYandexType && nodeAddr.isEmpty
 
         // DoT-резолверы (:853) исключаем ТОЛЬКО для yandex-носителя (ему DNS
@@ -332,6 +337,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        finishDiag(reason: reason)
         stopHealthMonitor()
         stopGeoSiteMonitor()
         stopLogDrain()
@@ -366,10 +372,107 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let s = String(cString: c)
         OpenFluxFreeString(c)
         guard !s.isEmpty else { return }
-        logTail.append(contentsOf: s.split(separator: "\n").map(String.init))
+        let lines = s.split(separator: "\n").map(String.init)
+        logTail.append(contentsOf: lines)
         if logTail.count > 600 {
             logTail.removeFirst(logTail.count - 600)
         }
+        remember(lines)
+    }
+
+    // MARK: - Diagnostics: why iOS stopped the tunnel
+    //
+    // The app reads the log only while the extension is alive, so the seconds
+    // before a stop were lost, and a kill leaves no trace at all. Every tick
+    // writes a heartbeat (state=running, memory) to the shared Keychain;
+    // stopTunnel replaces it with the reason iOS gave. The app shows whatever
+    // it finds once the tunnel is down: "running" there means the process died
+    // without stopTunnel (a kill), anything else names the reason.
+
+    private var diagTimer: Timer?
+    private var diagStartedAt = Date()
+    private var diagTransport = ""
+    private var peakFootprintMB = 0.0
+    /// Last lines of the core's log, kept apart from logTail (which the app
+    /// drains) so a stop report can carry them.
+    private var recentLines: [String] = []
+
+    private func remember(_ lines: [String]) {
+        recentLines.append(contentsOf: lines)
+        if recentLines.count > 40 { recentLines.removeFirst(recentLines.count - 40) }
+    }
+
+    /// phys_footprint (what jetsam counts) and the headroom iOS still allows.
+    private func memoryMB() -> (used: Double, avail: Double) {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let kr = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        let used = kr == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : -1
+        return (used, Double(os_proc_available_memory()) / 1_048_576)
+    }
+
+    private func memoryLine() -> String {
+        let m = memoryMB()
+        peakFootprintMB = max(peakFootprintMB, m.used)
+        return String(format: "[NE] память: %.1f МБ (пик %.1f), до лимита iOS %.1f МБ, %.0f с",
+                      m.used, peakFootprintMB, m.avail, Date().timeIntervalSince(diagStartedAt))
+    }
+
+    private func startDiag(transport: String) {
+        diagStartedAt = Date()
+        diagTransport = transport
+        peakFootprintMB = 0
+        DispatchQueue.main.async {
+            self.recentLines.removeAll()
+            self.heartbeat()
+            self.diagTimer?.invalidate()
+            // Every second: a death within the first seconds is what we chase.
+            self.diagTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                self?.heartbeat()
+            }
+        }
+    }
+
+    private func heartbeat() {
+        let line = memoryLine()
+        logTail.append(line)
+        remember([line])
+        Secrets.setNEDiag(diagReport(state: "running"))
+    }
+
+    private func finishDiag(reason: NEProviderStopReason) {
+        // logTail/recentLines live on the main queue (timers, IPC).
+        let work = {
+            self.diagTimer?.invalidate()
+            self.diagTimer = nil
+            self.drainLog()
+            self.remember([self.memoryLine()])
+            Secrets.setNEDiag(self.diagReport(state: "stopped: \(Self.stopReasonName(reason))"))
+        }
+        if Thread.isMainThread { work() } else { DispatchQueue.main.sync(execute: work) }
+    }
+
+    private func diagReport(state: String) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "dd.MM HH:mm:ss"
+        return (["[NE] \(f.string(from: Date())) транспорт \(diagTransport), \(state), "
+                 + String(format: "работал %.0f с, пик памяти %.1f МБ",
+                          Date().timeIntervalSince(diagStartedAt), peakFootprintMB)]
+                + recentLines).joined(separator: "\n")
+    }
+
+    /// NEProviderStopReason by raw value, so an SDK without a newer case still builds.
+    static func stopReasonName(_ r: NEProviderStopReason) -> String {
+        let names = [0: "none", 1: "userInitiated", 2: "providerFailed", 3: "noNetworkAvailable",
+                     4: "unrecoverableNetworkChange", 5: "providerDisabled", 6: "authenticationCanceled",
+                     7: "configurationFailed", 8: "idleTimeout", 9: "configurationDisabled",
+                     10: "configurationRemoved", 11: "superceded", 12: "userLogout", 13: "userSwitch",
+                     14: "connectionFailed", 15: "sleep", 16: "appUpdate", 17: "internalError"]
+        return "\(names[r.rawValue] ?? "unknown") (\(r.rawValue))"
     }
 
     /// IPC from the containing app. "log" hands back everything accumulated since

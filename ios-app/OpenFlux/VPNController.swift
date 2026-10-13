@@ -220,6 +220,21 @@ final class VPNController: ObservableObject {
             startLogPolling()
         } else {
             stopLogPolling()
+            if conn.status == .disconnected { reportExtensionStop() }
         }
+    }
+
+    /// What the extension left in the Keychain when it went down: the reason
+    /// iOS gave, or "running" if it died without being stopped (killed), plus
+    /// memory and its last log lines. Shown once, then cleared.
+    func reportExtensionStop() {
+        // Not shown yet (the log view hooks logSink after launch) = keep it.
+        guard let sink = logSink, let diag = Secrets.neDiag() else { return }
+        Secrets.setNEDiag("")
+        let killed = diag.contains(", running, ")
+        sink("[app] VPN остановлен. " + (killed
+            ? "Расширение не получило stopTunnel — его убила система (память?)."
+            : "Причина от iOS — в строке ниже."))
+        sink(diag)
     }
 }

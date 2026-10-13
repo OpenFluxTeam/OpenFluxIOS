@@ -344,6 +344,8 @@ struct ContentView: View {
                 // Pipe the extension's log (separate process) into the same panel
                 // as the in-app core's.
                 vpn.logSink = { [weak tunnel] line in tunnel?.appendExternal(line) }
+                // A stop report left while the app was closed (VPN already down).
+                if !vpn.active { vpn.reportExtensionStop() }
             }
             .sheet(item: $captchaTask) { task in
                 CaptchaView(url: task.url, onCookies: { header in

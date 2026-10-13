@@ -59,6 +59,49 @@ enum Secrets {
         return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
+    // MARK: - Диагностика расширения
+    //
+    // Почему iOS остановила туннель и сколько он занимал памяти. Расширение отдаёт
+    // журнал приложению только пока живо, так что последние секунды перед
+    // остановкой иначе теряются. Общего App Group у целей нет, общий Keychain —
+    // есть. Не секрет, но и не для UserDefaults: тот у процессов раздельный.
+
+    private static let diagService = "openflux.nediag"
+
+    static func neDiag() -> String? {
+        var q = diagQuery()
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data, let s = String(data: data, encoding: .utf8), !s.isEmpty
+        else { return nil }
+        return s
+    }
+
+    @discardableResult
+    static func setNEDiag(_ text: String) -> Bool {
+        guard !text.isEmpty else {
+            return SecItemDelete(diagQuery() as CFDictionary) == errSecSuccess
+        }
+        guard let data = text.data(using: .utf8) else { return false }
+        let q = diagQuery()
+        if SecItemUpdate(q as CFDictionary, [kSecValueData as String: data] as CFDictionary) == errSecSuccess {
+            return true
+        }
+        var add = q
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    private static func diagQuery() -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword,
+         kSecAttrService as String: diagService,
+         kSecAttrAccount as String: "last",
+         kSecAttrAccessGroup as String: accessGroup]
+    }
+
     // MARK: - Ключ прямого канала
     //
     // Отдельный слот: у докового профиля поле шифрования — это ключ САМИХ доков
