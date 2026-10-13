@@ -132,7 +132,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let nodeAddr = ((conf["nodeAddr"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         // specs negotiate-профиля от ядра. Не пусто = session-старт (контекст и
         // носители внутри), а не классический одиночный.
-        let session = (conf["session"] as? String) ?? ""
+        var session = (conf["session"] as? String) ?? ""
         // Режим без сервера: выход — PHP-нода на хостинге, говорим с ней
         // потоками (OpenFluxStartStreamPacketTunnel). DNS ядро отвечает само,
         // фейковыми адресами, а имя открывается на выходе — DoT и GeoSite-
@@ -166,6 +166,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         encryptionKey.withCString { k in
             OpenFluxSetEncryption(UnsafeMutablePointer(mutating: k))
+        }
+
+        // Телемост — одной полосой и через Session-старт: только там носителю
+        // можно передать params (TELEMOST_STRIPES ядро читает из окружения, а его
+        // Go копирует при загрузке библиотеки, раньше нашего кода). Три полосы —
+        // ~29 МБ в расширении, одна — ~13; а на 4-й секунде ядро перебирает
+        // KDF-контексты, и каждый scrypt на миг берёт ещё 32 МБ: 29 + 32 > 50,
+        // и iOS убивает расширение. Контекст — ссылка, как у выхода с --url.
+        if session.isEmpty, transport == "telemost", !encryptionKey.isEmpty {
+            session = Self.telemostSpecs(url) ?? ""
         }
 
         // Уровень лога ядра — ДО старта: Start* выставляет логгер из него, а по
@@ -463,6 +473,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                  + String(format: "работал %.0f с, пик памяти %.1f МБ",
                           Date().timeIntervalSince(diagStartedAt), peakFootprintMB)]
                 + recentLines).joined(separator: "\n")
+    }
+
+    /// Session specs for a classic Telemost profile: one lane (see startTunnel).
+    static func telemostSpecs(_ url: String) -> String? {
+        let u = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !u.isEmpty else { return nil }
+        let specs: [String: Any] = [
+            "context": u,
+            "transports": [["type": "telemost", "url": u,
+                            "params": ["stripes": "1", "stripes_max": "1"]]],
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: specs) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     /// NEProviderStopReason by raw value, so an SDK without a newer case still builds.
