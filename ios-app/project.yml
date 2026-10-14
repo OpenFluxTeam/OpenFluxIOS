@@ -8,7 +8,7 @@ options:
 settings:
   base:
     MARKETING_VERSION: "1.2.0"
-    CURRENT_PROJECT_VERSION: "102"
+    CURRENT_PROJECT_VERSION: "103"
     DEVELOPMENT_TEAM: "8GQH8GQ252"
 
 targets:
@@ -34,6 +34,9 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSCameraUsageDescription: "Сканирование QR-кода конфигурации для добавления профиля."
+        # Compose Multiplatform (the shared Kotlin UI) checks this at start and
+        # aborts without it: ProMotion screens may then run at 120 Hz.
+        CADisableMinimumFrameDurationOnPhone: true
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:

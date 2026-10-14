@@ -696,6 +696,13 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity).padding(.vertical, 4)
                 }
                 .buttonStyle(.bordered)
+                Button {
+                    showKotlinUI = true
+                } label: {
+                    Label("Новый интерфейс (Kotlin, тест)", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered)
             }
         } else {
             profileMenu
