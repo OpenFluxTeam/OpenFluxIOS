@@ -56,6 +56,8 @@ struct ContentView: View {
     @State private var sharing: Profile?      // profile shown as a QR
     /// Мастер «Своя нода без сервера» (PHP-хостинг).
     @State private var showNoServer = false
+    /// Общий UI на Kotlin (OpenFluxClientShared), пока в тесте.
+    @State private var showKotlinUI = false
     /// Будим ноду stream-профиля (до ~15 с): повторное нажатие не запускает второй старт.
     @State private var wakingNode = false
     @State private var testHint: String?
@@ -399,6 +401,9 @@ struct ContentView: View {
             .sheet(item: $sharing) { p in
                 ShareQRView(profile: p)
             }
+            .fullScreenCover(isPresented: $showKotlinUI) {
+                KotlinUIScreen { showKotlinUI = false }
+            }
             .sheet(isPresented: $showNoServer) {
                 NoServerWizardView(tunnel: tunnel, port: (Int(socksPort) ?? 10808) + 9,
                                    vpnActive: vpn.active) { p, token in
@@ -729,6 +734,9 @@ struct ContentView: View {
             Button {
                 showNoServer = true
             } label: { Label("Своя нода без сервера…", systemImage: "server.rack") }
+            Button {
+                showKotlinUI = true
+            } label: { Label("Новый интерфейс (Kotlin, тест)", systemImage: "sparkles") }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: transportIcon(store.selected?.transport))

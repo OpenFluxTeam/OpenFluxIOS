@@ -1,3 +1,7 @@
 [submodule "core"]
 	path = core
 	url = https://github.com/p1neappleXpress/OpenFlux.git
+[submodule "kmp/shared"]
+	path = kmp/shared
+	url = https://github.com/saharev1/OpenFluxClientShared.git
+	branch = ios-target

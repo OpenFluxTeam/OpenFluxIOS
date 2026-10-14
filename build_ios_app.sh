@@ -19,6 +19,9 @@ mkdir -p "$APP_DIR/Lib"
   cp "$ROOT/output/ios/liboflux.a" "$APP_DIR/Lib/liboflux.a"
 cp "$ROOT/output/ios/liboflux.h" "$APP_DIR/Lib/liboflux.h"
 
+echo "==> [2b/5] Building the shared Kotlin UI (kmp/ -> OpenFluxUI.framework)"
+( cd "$ROOT/kmp" && ./gradlew --no-daemon -q :iosUi:linkReleaseFrameworkIosArm64 :iosUi:assembleIosArm64MainResources :shared:prepareComposeResourcesTaskForCommonMain )
+
 echo "==> [3/5] Generating Xcode project"
 cd "$APP_DIR"
 xcodegen generate

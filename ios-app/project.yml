@@ -8,7 +8,7 @@ options:
 settings:
   base:
     MARKETING_VERSION: "1.2.0"
-    CURRENT_PROJECT_VERSION: "101"
+    CURRENT_PROJECT_VERSION: "102"
     DEVELOPMENT_TEAM: "8GQH8GQ252"
 
 targets:
@@ -21,6 +21,10 @@ targets:
         buildPhase: none
     dependencies:
       - framework: Lib/liboflux.a
+        embed: false
+      # The shared Compose UI (kmp/, Kotlin/Native, static): the app only, never
+      # the tunnel extension, whose 50 MB limit it would eat into.
+      - framework: ../kmp/iosUi/build/bin/iosArm64/releaseFramework/OpenFluxUI.framework
         embed: false
       - target: OpenFluxTunnel
     info:
@@ -36,6 +40,17 @@ targets:
           - UIInterfaceOrientationPortrait
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
+    # The shared UI's Compose resources (transport and tab icons). Xcode's KMP
+    # integration would sync them; with the framework linked by hand they are
+    # copied here, to where Compose looks for them on iOS.
+    postCompileScripts:
+      - name: Copy Compose resources
+        basedOnDependencyAnalysis: false
+        script: |
+          SRC="$SRCROOT/../kmp/shared/build/generated/compose/resourceGenerator/preparedResources/commonMain/composeResources"
+          DST="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/compose-resources/composeResources/io.openflux.desktop.resources"
+          if [ ! -d "$SRC" ]; then echo "error: $SRC missing - build kmp first"; exit 1; fi
+          mkdir -p "$DST" && cp -R "$SRC/" "$DST/"
     entitlements:
       path: OpenFlux/OpenFlux.entitlements
       properties:
@@ -59,6 +74,10 @@ targets:
           - "$(SRCROOT)/Lib"
         LIBRARY_SEARCH_PATHS:
           - "$(SRCROOT)/Lib"
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(SRCROOT)/../kmp/iosUi/build/bin/iosArm64/releaseFramework"
+        # The Compose-resources copy phase reads kmp/, outside the project.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         OTHER_LDFLAGS:
           - "-lresolv"
           - "-framework"
