@@ -56,6 +56,8 @@ class IosPlatformServices : PlatformServices {
     override val selfUpdates = false
     override val purchasesInApp = false
     override val supportUrl = "https://t.me/+4waLgXpI46IzOThi"
+    // The packet tunnel is a client only: no exit node on an iPhone.
+    override val exitNodeSupported = false
     override fun restartElevated() = false
 
     override fun clipboardText(): String? = UIPasteboard.generalPasteboard.string
