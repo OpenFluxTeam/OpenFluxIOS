@@ -2,10 +2,14 @@ package io.openflux.ios
 
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
+import io.openflux.app.platform.NoScrollbars
+import io.openflux.app.platform.Shortcuts
+import io.openflux.app.shell.OpenFluxApp
+import io.openflux.desktop.service.Accounts
 import io.openflux.desktop.service.AppContainer
-import io.openflux.desktop.ui.NoScrollbars
-import io.openflux.desktop.ui.Shortcuts
-import io.openflux.desktop.ui.shell.OpenFluxApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import platform.UIKit.UIViewController
 
 /**
@@ -13,13 +17,24 @@ import platform.UIKit.UIViewController
  * VPN itself stays in the Swift packet-tunnel extension.
  */
 fun MainViewController(): UIViewController {
+    val platform = IosPlatformServices()
+    // No subscription, bot or OpenFlux sign-in here (AppContainer's No* defaults):
+    // buying inside an iOS app must go through Apple, so the app only connects.
+    val accounts = Accounts(
+        repo = InMemoryAccountRepository(),
+        browser = NoAccountBrowser(),
+        probe = OfflineSessionProbe,
+        now = platform::now,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    )
     val container = AppContainer(
         profiles = InMemoryProfiles(),
         settings = InMemorySettings(),
         connection = IdleConnection(),
-        platform = IosPlatformServices(),
+        platform = platform,
         shareCodec = NoShareCodec,
         nodeWizard = NoNodeWizard(),
+        accounts = accounts,
     )
     return ComposeUIViewController {
         OpenFluxApp(container, NoScrollbars, remember { Shortcuts() })

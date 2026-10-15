@@ -1,9 +1,12 @@
 package io.openflux.ios
 
 import io.openflux.desktop.model.AppSettings
-import io.openflux.desktop.ui.BrowserPage
+import io.openflux.app.platform.BrowserPage
 import io.openflux.desktop.model.CaptchaPrompt
+import io.openflux.desktop.model.ConnectionMode
 import io.openflux.desktop.model.ConnectionState
+import io.openflux.desktop.model.NodeCoreSource
+import io.openflux.desktop.model.NodeMode
 import io.openflux.desktop.model.ExitAddress
 import io.openflux.desktop.model.LogLevel
 import io.openflux.desktop.model.LogLine
@@ -16,7 +19,15 @@ import io.openflux.desktop.model.ShareConfig
 import io.openflux.desktop.model.ShareLinkCodec
 import io.openflux.desktop.model.SshTarget
 import io.openflux.desktop.model.TrafficStats
+import io.openflux.desktop.model.YandexDocument
+import io.openflux.desktop.model.AccountKind
+import io.openflux.desktop.model.AccountSession
+import io.openflux.desktop.service.AccountBrowser
+import io.openflux.desktop.service.AccountException
+import io.openflux.desktop.service.AccountRepository
 import io.openflux.desktop.service.ConnectionService
+import io.openflux.desktop.service.ProbeResult
+import io.openflux.desktop.service.SessionProbe
 import io.openflux.desktop.service.NodeWizardService
 import io.openflux.desktop.service.PlatformKind
 import io.openflux.desktop.service.PlatformServices
@@ -62,7 +73,7 @@ class IdleConnection : ConnectionService {
     override val exitShareLink: StateFlow<String?> = MutableStateFlow(null)
     override val socksAddress: StateFlow<String?> = MutableStateFlow(null)
     override val captchaPage: StateFlow<BrowserPage?> = MutableStateFlow(null)
-    override fun connect(profile: Profile) = Unit
+    override fun connect(profile: Profile, mode: ConnectionMode?) = Unit
     override fun disconnect() = Unit
     override fun refreshExitAddress() = Unit
     override fun clearLogs() { logs.value = emptyList() }
@@ -79,15 +90,18 @@ object NoShareCodec : ShareLinkCodec {
 
 class NoNodeWizard : NodeWizardService {
     private fun no(): Nothing = error("мастер узла ещё не подключён на iOS")
-    override suspend fun connect(target: SshTarget): ServerProbe = no()
+    override suspend fun connect(target: SshTarget, source: NodeCoreSource): ServerProbe = no()
     override suspend fun newChannel(): NewChannel = no()
-    override suspend fun plan(channel: String, transports: List<NodeTransport>, autoUpdate: Boolean): NodePlan = no()
-    override suspend fun apply(channel: NewChannel, transports: List<NodeTransport>, port: Int, autoUpdate: Boolean, sudoPassword: String) = no()
+    override suspend fun plan(channel: String, transports: List<NodeTransport>, withCookies: Boolean, autoUpdate: Boolean, mode: NodeMode): NodePlan = no()
+    override suspend fun apply(channel: NewChannel, transports: List<NodeTransport>, port: Int, autoUpdate: Boolean, sudoPassword: String, cookieHeader: String, mode: NodeMode) = no()
     override suspend fun remove(channel: String, sudoPassword: String) = no()
     override suspend fun checkDocument(documentUrl: String) = no()
     override suspend fun createCupsRooms(): String = no()
     override suspend fun shareLink(name: String, key: String, host: String, port: Int, transports: List<NodeTransport>): String = no()
     override suspend fun resolve(host: String): Set<String> = emptySet()
+    override val documentPage: StateFlow<BrowserPage?> = MutableStateFlow(null)
+    override suspend fun createDocument(fileName: String, onStep: (String) -> Unit): YandexDocument = no()
+    override fun cancelDocument() = Unit
     override val logs = MutableStateFlow<List<LogLine>>(emptyList())
     override fun clearLogs() { logs.value = emptyList() }
     override fun note(text: String, level: LogLevel) = Unit
@@ -122,4 +136,31 @@ class IosPlatformServices : PlatformServices {
     }
     override fun now(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
     override suspend fun latestRelease(): String? = null
+}
+
+// Accounts (sign-in to Yandex / Mail.ru in a built-in browser): sessions kept
+// in memory; the browser comes with the WKWebView step.
+
+class InMemoryAccountRepository : AccountRepository {
+    private val _sessions = MutableStateFlow<Map<AccountKind, AccountSession>>(emptyMap())
+    override val sessions: StateFlow<Map<AccountKind, AccountSession>> = _sessions
+    override fun save(session: AccountSession) { _sessions.value = _sessions.value + (session.kind to session) }
+    override fun remove(kind: AccountKind) { _sessions.value = _sessions.value - kind }
+}
+
+class NoAccountBrowser : AccountBrowser {
+    override val page: StateFlow<BrowserPage?> = MutableStateFlow(null)
+    override val url: String = ""
+    override val loading: Boolean = false
+    override val closed: Boolean = true
+    override suspend fun open(kind: AccountKind, url: String, cookies: Map<String, String>, onStep: (String) -> Unit) =
+        throw AccountException("Вход в аккаунт на iOS ещё не подключён")
+    override suspend fun evaluate(script: String): String = ""
+    override fun load(url: String) = Unit
+    override suspend fun cookies(kind: AccountKind): Map<String, String> = emptyMap()
+    override fun close() = Unit
+}
+
+object OfflineSessionProbe : SessionProbe {
+    override suspend fun probe(kind: AccountKind, cookies: Map<String, String>): ProbeResult = ProbeResult.NeedsCheck
 }
