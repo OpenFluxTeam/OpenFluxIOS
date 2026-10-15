@@ -10,7 +10,10 @@ struct KotlinUIScreen: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            ComposeHost().ignoresSafeArea(.keyboard)
+            // Edge to edge: the shared UI pads itself for the notch and the home
+            // indicator (windowInsetsPadding(safeDrawing)); held inside SwiftUI's
+            // safe area it was boxed in, with bands of system background around it.
+            ComposeHost().ignoresSafeArea()
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
