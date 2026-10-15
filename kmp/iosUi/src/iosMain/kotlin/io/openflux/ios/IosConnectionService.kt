@@ -1,0 +1,258 @@
+package io.openflux.ios
+
+import io.openflux.app.platform.BrowserPage
+import io.openflux.desktop.model.CaptchaPrompt
+import io.openflux.desktop.model.ConnectionMode
+import io.openflux.desktop.model.ConnectionState
+import io.openflux.desktop.model.ExitAddress
+import io.openflux.desktop.model.LogLevel
+import io.openflux.desktop.model.LogLine
+import io.openflux.desktop.model.Profile
+import io.openflux.desktop.model.TrafficStats
+import io.openflux.desktop.service.ConnectionService
+import io.openflux.desktop.service.ProfileRepository
+import io.openflux.desktop.service.SettingsRepository
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.ObjCObjectVar
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.value
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import platform.Foundation.NSData
+import platform.Foundation.NSDate
+import platform.Foundation.NSError
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
+import platform.Foundation.NSString
+import platform.Foundation.NSURL
+import platform.Foundation.NSURLSession
+import platform.Foundation.NSUTF8StringEncoding
+import platform.Foundation.create
+import platform.Foundation.dataTaskWithURL
+import platform.Foundation.dataUsingEncoding
+import platform.Foundation.timeIntervalSince1970
+import platform.NetworkExtension.NEOnDemandRuleConnect
+import platform.NetworkExtension.NETunnelProviderManager
+import platform.NetworkExtension.NETunnelProviderProtocol
+import platform.NetworkExtension.NETunnelProviderSession
+import platform.NetworkExtension.NEVPNStatus
+import platform.NetworkExtension.NEVPNStatusConnected
+import platform.NetworkExtension.NEVPNStatusConnecting
+import platform.NetworkExtension.NEVPNStatusDidChangeNotification
+import platform.NetworkExtension.NEVPNStatusDisconnecting
+import platform.NetworkExtension.NEVPNStatusReasserting
+
+/**
+ * The shared UI's connection on iOS. The core runs in the packet-tunnel
+ * extension (the same one the Swift UI starts), so this does what the Swift
+ * VPNController does: write the profile's secret to the shared Keychain, put
+ * what the extension needs into the VPN profile's providerConfiguration, start
+ * it, and follow it — the system's VPN status for the state, the extension's
+ * "log" IPC for the journal.
+ */
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+class IosConnectionService(
+    private val profiles: ProfileRepository,
+    private val settings: SettingsRepository,
+) : ConnectionService {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
+    override val state: StateFlow<ConnectionState> = _state.asStateFlow()
+    override val traffic: StateFlow<TrafficStats> = MutableStateFlow(TrafficStats())
+    private val _exitAddress = MutableStateFlow<ExitAddress>(ExitAddress.Unknown)
+    override val exitAddress: StateFlow<ExitAddress> = _exitAddress.asStateFlow()
+    private val _logs = MutableStateFlow<List<LogLine>>(emptyList())
+    override val logs: StateFlow<List<LogLine>> = _logs.asStateFlow()
+    override val captcha: StateFlow<CaptchaPrompt?> = MutableStateFlow(null)
+    override val exitShareLink: StateFlow<String?> = MutableStateFlow(null)
+    override val socksAddress: StateFlow<String?> = MutableStateFlow(null)
+    override val captchaPage: StateFlow<BrowserPage?> = MutableStateFlow(null)
+
+    private var manager: NETunnelProviderManager? = null
+    /** The profile the running tunnel was started with (found again by its id after a restart of the app). */
+    private var active: Profile? = null
+    private var since: Long = 0
+    private var logJob: Job? = null
+    private var lineId = 0L
+
+    init {
+        NSNotificationCenter.defaultCenter.addObserverForName(NEVPNStatusDidChangeNotification, null, NSOperationQueue.mainQueue) { _ ->
+            refresh()
+        }
+        NETunnelProviderManager.loadAllFromPreferencesWithCompletionHandler { list, _ ->
+            scope.launch {
+                manager = list?.firstOrNull() as? NETunnelProviderManager
+                val conf = (manager?.protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration
+                val id = conf?.get("kmpProfileId") as? String
+                active = profiles.profiles.value.firstOrNull { it.id == id }
+                refresh()
+            }
+        }
+    }
+
+    private fun now(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
+
+    private fun note(text: String, level: LogLevel = LogLevel.Info) {
+        _logs.value = (_logs.value + LogLine(++lineId, now(), text, level)).takeLast(2000)
+    }
+
+    override fun connect(profile: Profile, mode: ConnectionMode?) {
+        if (mode != null && mode != ConnectionMode.Client) {
+            _state.value = ConnectionState.Failed(profile, "На iPhone — только подключение к узлу")
+            return
+        }
+        active = profile
+        since = now()
+        _state.value = ConnectionState.Connecting(profile, ConnectionMode.Client, since)
+        val uuid = SharedKeychain.uuidFor(profile.id)
+        if (!profile.stream && !SharedKeychain.setSecret(uuid, profile.secret)) {
+            note("Не удалось сохранить ключ в Keychain", LogLevel.Error)
+        }
+        val conf = providerConfiguration(profile, uuid)
+        NETunnelProviderManager.loadAllFromPreferencesWithCompletionHandler { list, _ ->
+            scope.launch {
+                val m = list?.firstOrNull() as? NETunnelProviderManager ?: NETunnelProviderManager()
+                val proto = NETunnelProviderProtocol()
+                proto.providerBundleIdentifier = "com.p1neapplexpress-saharev.openflux.tunnel"
+                proto.serverAddress = "OpenFlux"
+                proto.providerConfiguration = conf
+                m.protocolConfiguration = proto
+                m.localizedDescription = "OpenFlux"
+                m.enabled = true
+                // As the Swift UI: iOS brings the tunnel back when it drops.
+                m.onDemandEnabled = true
+                m.onDemandRules = listOf(NEOnDemandRuleConnect())
+                m.saveToPreferencesWithCompletionHandler { saveError ->
+                    if (saveError != null) {
+                        fail(profile, "Не удалось сохранить VPN-профиль: ${saveError.localizedDescription}")
+                        return@saveToPreferencesWithCompletionHandler
+                    }
+                    m.loadFromPreferencesWithCompletionHandler { _ ->
+                        manager = m
+                        memScoped {
+                            val err = alloc<ObjCObjectVar<NSError?>>()
+                            if (!m.connection.startVPNTunnelAndReturnError(err.ptr)) {
+                                fail(profile, "VPN не запустился: ${err.value?.localizedDescription ?: "неизвестная ошибка"}")
+                            } else {
+                                note("Подключаюсь через «${profile.name}»")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** What the extension reads (PacketTunnelProvider.startTunnel): the same keys the Swift VPNController writes. */
+    private fun providerConfiguration(p: Profile, uuid: String): Map<Any?, Any?> {
+        val debug = settings.settings.value.debugLevel > 0
+        val base = mutableMapOf<Any?, Any?>(
+            "transport" to p.transport.cliName,
+            "url" to p.value.trim(),
+            "maxToken" to if (p.transport.cliName == "oneme") p.value.trim() else "",
+            "maxUid" to p.uid.trim(),
+            "dns" to "",
+            "udp" to "1",
+            "split" to "",
+            "directDomains" to "",
+            "profileID" to uuid,
+            "keySlot" to "",
+            "nodeAddr" to "",
+            "session" to if (p.session && !p.stream) IosCoreSpecs.session(p) else "",
+            "stream" to if (p.stream) "1" else "0",
+            "debug" to if (debug) "1" else "0",
+            "kmpProfileId" to p.id,
+        )
+        return base
+    }
+
+    private fun fail(profile: Profile?, message: String) {
+        note(message, LogLevel.Error)
+        _state.value = ConnectionState.Failed(profile, message)
+    }
+
+    override fun disconnect() {
+        val m = manager ?: return
+        active?.let { _state.value = ConnectionState.Disconnecting(it) }
+        // On-demand off first, or iOS would bring the tunnel straight back.
+        m.onDemandEnabled = false
+        m.saveToPreferencesWithCompletionHandler { _ ->
+            m.loadFromPreferencesWithCompletionHandler { _ -> m.connection.stopVPNTunnel() }
+        }
+    }
+
+    private fun refresh() {
+        val status: NEVPNStatus = manager?.connection?.status ?: return
+        val p = active
+        _state.value = when {
+            p == null -> if (status == NEVPNStatusConnected) _state.value else ConnectionState.Idle
+            status == NEVPNStatusConnecting -> ConnectionState.Connecting(p, ConnectionMode.Client, since)
+            status == NEVPNStatusConnected -> {
+                if (_state.value !is ConnectionState.Connected) { since = now(); refreshExitAddress() }
+                ConnectionState.Connected(p, ConnectionMode.Client, since)
+            }
+            status == NEVPNStatusReasserting -> ConnectionState.Reconnecting(p, ConnectionMode.Client, since)
+            status == NEVPNStatusDisconnecting -> ConnectionState.Disconnecting(p)
+            _state.value is ConnectionState.Failed -> _state.value
+            else -> { _exitAddress.value = ExitAddress.Unknown; ConnectionState.Idle }
+        }
+        val running = status == NEVPNStatusConnecting || status == NEVPNStatusConnected || status == NEVPNStatusReasserting
+        if (running && logJob == null) logJob = scope.launch { pollLog() }
+        if (!running) { logJob?.cancel(); logJob = null }
+    }
+
+    /** The extension's journal, drained once a second over the provider IPC (its own process). */
+    private suspend fun pollLog() {
+        while (scope.isActive) {
+            val session = manager?.connection as? NETunnelProviderSession
+            val msg = NSString.create(string = "log").dataUsingEncoding(NSUTF8StringEncoding)
+            if (session != null && msg != null) {
+                runCatching {
+                    session.sendProviderMessage(msg, null) { data: NSData? ->
+                        val text = data?.let { NSString.create(it, NSUTF8StringEncoding)?.toString() }.orEmpty()
+                        if (text.isNotEmpty()) scope.launch { text.lines().filter { it.isNotBlank() }.forEach { note(it, levelOf(it)) } }
+                    }
+                }
+            }
+            delay(1000)
+        }
+    }
+
+    private fun levelOf(line: String): LogLevel = when {
+        line.contains("error", ignoreCase = true) || line.contains("ошибк", ignoreCase = true) -> LogLevel.Error
+        line.contains("warn", ignoreCase = true) -> LogLevel.Warning
+        else -> LogLevel.Debug
+    }
+
+    override fun refreshExitAddress() {
+        if (_state.value !is ConnectionState.Connected) return
+        _exitAddress.value = ExitAddress.Checking
+        val url = NSURL.URLWithString("https://api.ipify.org") ?: return
+        // The app's own traffic goes through the tunnel, so this is the exit's address.
+        NSURLSession.sharedSession.dataTaskWithURL(url) { data, _, error ->
+            val ip = data?.let { NSString.create(it, NSUTF8StringEncoding)?.toString()?.trim() }
+            scope.launch {
+                _exitAddress.value = if (!ip.isNullOrEmpty() && error == null) ExitAddress.Known(ip)
+                else ExitAddress.Unavailable(error?.localizedDescription ?: "нет ответа")
+            }
+        }.resume()
+    }
+
+    override fun clearLogs() { _logs.value = emptyList() }
+    override fun openCaptcha() = Unit
+    override fun submitCaptcha() = Unit
+    override fun dismissCaptcha() = Unit
+    override fun shutdown() { logJob?.cancel() }
+}

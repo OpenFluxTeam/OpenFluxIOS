@@ -8,6 +8,14 @@ plugins {
 kotlin {
     // Device only: no simulator slice, nothing to download for one.
     iosArm64 {
+        compilations.getByName("main") {
+            cinterops {
+                val oflux by creating {
+                    defFile(project.file("src/nativeInterop/cinterop/oflux.def"))
+                    includeDirs(rootProject.file("../ios-app/Lib"))
+                }
+            }
+        }
         binaries.framework {
             baseName = "OpenFluxUI"
             isStatic = true

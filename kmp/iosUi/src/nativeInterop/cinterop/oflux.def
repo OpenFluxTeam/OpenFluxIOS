@@ -1,0 +1,5 @@
+# The Go core's C API (ios-app/Lib/liboflux.h, built by build_ios.sh). Only the
+# header: the static library is linked into the app, which resolves these
+# symbols when it links this (static) framework.
+headers = liboflux.h
+package = io.openflux.ios.core

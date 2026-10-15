@@ -5,6 +5,7 @@ import androidx.compose.ui.window.ComposeUIViewController
 import io.openflux.app.platform.NoScrollbars
 import io.openflux.app.platform.Shortcuts
 import io.openflux.app.shell.OpenFluxApp
+import io.openflux.desktop.model.CoreShareLinkCodec
 import io.openflux.desktop.service.Accounts
 import io.openflux.desktop.service.AppContainer
 import kotlinx.coroutines.CoroutineScope
@@ -27,12 +28,14 @@ fun MainViewController(): UIViewController {
         now = platform::now,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     )
+    val profiles = DefaultsProfiles()
+    val settings = DefaultsSettings()
     val container = AppContainer(
-        profiles = InMemoryProfiles(),
-        settings = InMemorySettings(),
-        connection = IdleConnection(),
+        profiles = profiles,
+        settings = settings,
+        connection = IosConnectionService(profiles, settings),
         platform = platform,
-        shareCodec = NoShareCodec,
+        shareCodec = CoreShareLinkCodec(IosCoreLinks),
         nodeWizard = NoNodeWizard(),
         accounts = accounts,
     )
