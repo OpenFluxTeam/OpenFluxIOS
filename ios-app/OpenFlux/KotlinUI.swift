@@ -25,9 +25,19 @@ struct KotlinUIScreen: View {
     }
 }
 
+/// The app's main screen: the shared Kotlin UI, edge to edge. The Swift UI
+/// stays behind Settings → OpenFlux → «Классический интерфейс».
+struct KotlinRootView: View {
+    var body: some View {
+        ComposeHost().ignoresSafeArea()
+    }
+}
+
 private struct ComposeHost: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController()
+        // Before the Kotlin side reads them: the Swift UI's profiles as links, once.
+        KotlinHooks.prepareMigration(ProfileStore())
+        return MainViewControllerKt.MainViewController()
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

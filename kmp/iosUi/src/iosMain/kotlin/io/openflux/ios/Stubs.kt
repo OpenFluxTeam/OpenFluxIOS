@@ -108,40 +108,6 @@ class NoNodeWizard : NodeWizardService {
     override fun close() = Unit
 }
 
-class IosPlatformServices : PlatformServices {
-    override val kind = PlatformKind.Ios
-    override val appVersion: String =
-        (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String).orEmpty()
-    override val coreVersion: String = ""
-    override val clientRepo: String = "saharev1/OpenFlux"
-    override val systemProxySupported = false
-    override val fullTunnelSupported = true
-    override val elevated = false
-    override val clipboardImageSupported = false
-    // TestFlight / the App Store update the app, and buying a digital service in an
-    // iOS app may go only through Apple: neither is offered here.
-    override val selfUpdates = false
-    override val purchasesInApp = false
-    override val supportUrl = "https://t.me/+4waLgXpI46IzOThi"
-    override fun restartElevated() = false
-    override fun clipboardText(): String? = UIPasteboard.generalPasteboard.string
-    override fun setClipboardText(text: String) { UIPasteboard.generalPasteboard.string = text }
-    override fun qrFromClipboardImage(): String? = null
-    override fun qrFromFile(path: String): String? = null
-    override suspend fun pickFile(title: String, extensions: List<String>): String? = null
-    override fun readTextFile(path: String, maxBytes: Int): String? = null
-    override fun qrMatrix(text: String): List<BooleanArray> = emptyList()
-    override fun openUrl(url: String) {
-        val u = NSURL.URLWithString(url) ?: return
-        UIApplication.sharedApplication.openURL(u, options = emptyMap<Any?, Any>(), completionHandler = null)
-    }
-    override fun newSecret(): String {
-        val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
-        return (1..32).map { alphabet[kotlin.random.Random.nextInt(alphabet.length)] }.joinToString("")
-    }
-    override fun now(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
-    override suspend fun latestRelease(): String? = null
-}
 
 // Accounts (sign-in to Yandex / Mail.ru in a built-in browser): sessions kept
 // in memory; the browser comes with the WKWebView step.

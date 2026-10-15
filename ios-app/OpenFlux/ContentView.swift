@@ -697,7 +697,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
                 Button {
-                    showKotlinUI = true
+                    KotlinHooks.prepareMigration(store); showKotlinUI = true
                 } label: {
                     Label("Новый интерфейс (Kotlin, тест)", systemImage: "sparkles")
                         .frame(maxWidth: .infinity).padding(.vertical, 4)
@@ -742,7 +742,7 @@ struct ContentView: View {
                 showNoServer = true
             } label: { Label("Своя нода без сервера…", systemImage: "server.rack") }
             Button {
-                showKotlinUI = true
+                KotlinHooks.prepareMigration(store); showKotlinUI = true
             } label: { Label("Новый интерфейс (Kotlin, тест)", systemImage: "sparkles") }
         } label: {
             HStack(spacing: 10) {

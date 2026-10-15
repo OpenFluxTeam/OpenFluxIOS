@@ -514,6 +514,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // The core lives in THIS process, so only the extension can see that a
         // SmartCaptcha is pending — and only it can hand the solved cookies to
         // the transport. The app drives the WebView and relays through here.
+        // Traffic for the app: "up\tdown\tcarrier" (bytes since the tunnel started).
+        case "stats":
+            var carrier = ""
+            if let c = OpenFluxActiveTransport() {
+                carrier = String(cString: c)
+                OpenFluxFreeString(c)
+            }
+            completionHandler?("\(bytesUp)\t\(bytesDown)\t\(carrier)".data(using: .utf8))
+
         // Переключатель «Подробный лог» из приложения: действует сразу.
         case "debug1", "debug0":
             OpenFluxSetDebug(cmd == "debug1" ? 1 : 0)
@@ -641,10 +650,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     /// Device -> Go stack.
+    /// Bytes the device sent into the tunnel / got out of it, for the app's
+    /// traffic numbers (IPC "stats"). Each is written by one loop only.
+    private var bytesUp: Int64 = 0
+    private var bytesDown: Int64 = 0
+
     private func startReadLoop() {
         packetFlow.readPackets { [weak self] packets, _ in
             guard let self = self else { return }
             for p in packets {
+                self.bytesUp += Int64(p.count)
                 p.withUnsafeBytes { raw in
                     if let base = raw.bindMemory(to: CChar.self).baseAddress {
                         OpenFluxTunWritePacket(UnsafeMutablePointer(mutating: base), Int32(p.count))
@@ -665,6 +680,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 let n = OpenFluxTunReadPacket(buf, maxLen)
                 if n <= 0 { break }
                 let data = Data(bytes: buf, count: Int(n))
+                self.bytesDown += Int64(n)
                 self.packetFlow.writePackets([data], withProtocols: [NSNumber(value: AF_INET)])
             }
         }

@@ -74,7 +74,10 @@ class IosConnectionService(
 
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     override val state: StateFlow<ConnectionState> = _state.asStateFlow()
-    override val traffic: StateFlow<TrafficStats> = MutableStateFlow(TrafficStats())
+    private val _traffic = MutableStateFlow(TrafficStats())
+    override val traffic: StateFlow<TrafficStats> = _traffic.asStateFlow()
+    private var lastUp = 0L
+    private var lastDown = 0L
     private val _exitAddress = MutableStateFlow<ExitAddress>(ExitAddress.Unknown)
     override val exitAddress: StateFlow<ExitAddress> = _exitAddress.asStateFlow()
     private val _logs = MutableStateFlow<List<LogLine>>(emptyList())
@@ -236,13 +239,28 @@ class IosConnectionService(
         }
         val running = status == NEVPNStatusConnecting || status == NEVPNStatusConnected || status == NEVPNStatusReasserting
         if (running && logJob == null) logJob = scope.launch { pollLog() }
-        if (!running) { logJob?.cancel(); logJob = null }
+        if (!running) {
+            logJob?.cancel(); logJob = null
+            lastUp = 0; lastDown = 0
+            _traffic.value = TrafficStats()
+        }
     }
 
     /** The extension's journal, drained once a second over the provider IPC (its own process). */
     private suspend fun pollLog() {
         while (scope.isActive) {
             val session = manager?.connection as? NETunnelProviderSession
+            val stats = NSString.create(string = "stats").dataUsingEncoding(NSUTF8StringEncoding)
+            if (session != null && stats != null) {
+                runCatching {
+                    session.sendProviderMessage(stats, null) { data: NSData? ->
+                        val parts = data?.let { NSString.create(it, NSUTF8StringEncoding)?.toString() }.orEmpty().split('\t')
+                        val up = parts.getOrNull(0)?.toLongOrNull()
+                        val down = parts.getOrNull(1)?.toLongOrNull()
+                        if (up != null && down != null) scope.launch { onStats(up, down, parts.getOrNull(2).orEmpty()) }
+                    }
+                }
+            }
             val msg = NSString.create(string = "log").dataUsingEncoding(NSUTF8StringEncoding)
             if (session != null && msg != null) {
                 runCatching {
@@ -254,6 +272,19 @@ class IosConnectionService(
             }
             delay(1000)
         }
+    }
+
+    /** Totals since the tunnel started; the rate is this second's difference. */
+    private fun onStats(up: Long, down: Long, carrier: String) {
+        val restarted = up < lastUp || down < lastDown
+        val upRate = if (restarted) 0 else up - lastUp
+        val downRate = if (restarted) 0 else down - lastDown
+        lastUp = up
+        lastDown = down
+        _traffic.value = TrafficStats(
+            upBytesPerSec = upRate, downBytesPerSec = downRate, totalUp = up, totalDown = down,
+            activeTransport = carrier, activeTransports = listOfNotNull(carrier.takeIf { it.isNotEmpty() }), live = true,
+        )
     }
 
     private fun levelOf(line: String): LogLevel = when {

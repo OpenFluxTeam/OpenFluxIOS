@@ -8,6 +8,9 @@ import io.openflux.app.shell.OpenFluxApp
 import io.openflux.desktop.model.CoreShareLinkCodec
 import io.openflux.desktop.service.Accounts
 import io.openflux.desktop.service.AppContainer
+import io.openflux.desktop.service.NodeKeepingConnection
+import io.openflux.desktop.service.PhpHostingService
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,14 +33,23 @@ fun MainViewController(): UIViewController {
     )
     val profiles = DefaultsProfiles()
     val settings = DefaultsSettings()
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    val codec = CoreShareLinkCodec(IosCoreLinks)
+    val phpHosting = PhpHostingService(IosPhpTransport(), clock = platform::now)
+    // The Swift UI's profiles, once (see SwiftProfileMigration).
+    scope.launch {
+        SwiftProfileMigration.run(profiles, codec, platform.now()) { id -> settings.update { it.copy(selectedProfileId = id) } }
+    }
     val container = AppContainer(
         profiles = profiles,
         settings = settings,
-        connection = IosConnectionService(profiles, settings),
+        // A "без сервера" profile first asks its node on the hosting to run (as on the desktop).
+        connection = NodeKeepingConnection(IosConnectionService(profiles, settings), phpHosting, scope),
         platform = platform,
-        shareCodec = CoreShareLinkCodec(IosCoreLinks),
+        shareCodec = codec,
         nodeWizard = NoNodeWizard(),
         accounts = accounts,
+        phpHosting = phpHosting,
     )
     return ComposeUIViewController {
         OpenFluxApp(container, NoScrollbars, remember { Shortcuts() })
