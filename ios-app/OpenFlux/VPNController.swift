@@ -72,6 +72,19 @@ final class VPNController: ObservableObject {
             // user-toggleable.
             m.isOnDemandEnabled = onDemand
             m.onDemandRules = onDemand ? [NEOnDemandRuleConnect()] : []
+            // A tunnel already up (from the Kotlin UI, or on demand) keeps the
+            // configuration it started with: saving a new one does not restart it
+            // and startVPNTunnel on it does nothing. Stop it and wait it out first.
+            let up: [NEVPNStatus] = [.connecting, .connected, .reasserting, .disconnecting]
+            if up.contains(m.connection.status) {
+                m.isOnDemandEnabled = false
+                try? await m.saveToPreferences()
+                m.connection.stopVPNTunnel()
+                for _ in 0..<75 where m.connection.status != .disconnected && m.connection.status != .invalid {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                }
+                m.isOnDemandEnabled = onDemand
+            }
             do {
                 try await m.saveToPreferences()
                 try await m.loadFromPreferences()   // required before starting

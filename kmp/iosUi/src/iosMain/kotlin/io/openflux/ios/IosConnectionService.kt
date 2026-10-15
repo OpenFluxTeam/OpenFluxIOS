@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import platform.Foundation.NSData
 import platform.Foundation.NSDate
 import platform.Foundation.NSError
@@ -50,7 +52,9 @@ import platform.NetworkExtension.NEVPNStatus
 import platform.NetworkExtension.NEVPNStatusConnected
 import platform.NetworkExtension.NEVPNStatusConnecting
 import platform.NetworkExtension.NEVPNStatusDidChangeNotification
+import platform.NetworkExtension.NEVPNStatusDisconnected
 import platform.NetworkExtension.NEVPNStatusDisconnecting
+import platform.NetworkExtension.NEVPNStatusInvalid
 import platform.NetworkExtension.NEVPNStatusReasserting
 
 /**
@@ -121,9 +125,22 @@ class IosConnectionService(
             note("Не удалось сохранить ключ в Keychain", LogLevel.Error)
         }
         val conf = providerConfiguration(profile, uuid)
-        NETunnelProviderManager.loadAllFromPreferencesWithCompletionHandler { list, _ ->
-            scope.launch {
-                val m = list?.firstOrNull() as? NETunnelProviderManager ?: NETunnelProviderManager()
+        scope.launch {
+            try {
+                val m = loadManager() ?: NETunnelProviderManager()
+                // A tunnel already up (started by the Swift UI, or on demand) keeps the
+                // configuration it started with: saving a new one does not restart it and
+                // startVPNTunnel on a running tunnel does nothing. Stop it first.
+                if (isUp(m.connection.status)) {
+                    note("Останавливаю текущее подключение, чтобы запустить «${profile.name}»")
+                    m.onDemandEnabled = false
+                    save(m)
+                    m.connection.stopVPNTunnel()
+                    var waited = 0
+                    while (m.connection.status != NEVPNStatusDisconnected && m.connection.status != NEVPNStatusInvalid && waited < 15_000) {
+                        delay(200); waited += 200
+                    }
+                }
                 val proto = NETunnelProviderProtocol()
                 proto.providerBundleIdentifier = "com.p1neapplexpress-saharev.openflux.tunnel"
                 proto.serverAddress = "OpenFlux"
@@ -134,25 +151,34 @@ class IosConnectionService(
                 // As the Swift UI: iOS brings the tunnel back when it drops.
                 m.onDemandEnabled = true
                 m.onDemandRules = listOf(NEOnDemandRuleConnect())
-                m.saveToPreferencesWithCompletionHandler { saveError ->
-                    if (saveError != null) {
-                        fail(profile, "Не удалось сохранить VPN-профиль: ${saveError.localizedDescription}")
-                        return@saveToPreferencesWithCompletionHandler
-                    }
-                    m.loadFromPreferencesWithCompletionHandler { _ ->
-                        manager = m
-                        memScoped {
-                            val err = alloc<ObjCObjectVar<NSError?>>()
-                            if (!m.connection.startVPNTunnelAndReturnError(err.ptr)) {
-                                fail(profile, "VPN не запустился: ${err.value?.localizedDescription ?: "неизвестная ошибка"}")
-                            } else {
-                                note("Подключаюсь через «${profile.name}»")
-                            }
-                        }
+                save(m)
+                manager = m
+                memScoped {
+                    val err = alloc<ObjCObjectVar<NSError?>>()
+                    if (!m.connection.startVPNTunnelAndReturnError(err.ptr)) {
+                        fail(profile, "VPN не запустился: ${err.value?.localizedDescription ?: "неизвестная ошибка"}")
+                    } else {
+                        note("Подключаюсь через «${profile.name}»")
                     }
                 }
+            } catch (e: Exception) {
+                fail(profile, e.message ?: "VPN не запустился")
             }
         }
+    }
+
+    private fun isUp(s: NEVPNStatus) =
+        s == NEVPNStatusConnecting || s == NEVPNStatusConnected || s == NEVPNStatusReasserting || s == NEVPNStatusDisconnecting
+
+    private suspend fun loadManager(): NETunnelProviderManager? = suspendCoroutine { c ->
+        NETunnelProviderManager.loadAllFromPreferencesWithCompletionHandler { list, _ -> c.resume(list?.firstOrNull() as? NETunnelProviderManager) }
+    }
+
+    /** saveToPreferences, then loadFromPreferences (iOS wants the reload before a start). */
+    private suspend fun save(m: NETunnelProviderManager) {
+        val saveError = suspendCoroutine { c -> m.saveToPreferencesWithCompletionHandler { e -> c.resume(e) } }
+        if (saveError != null) throw IllegalStateException("Не удалось сохранить VPN-профиль: ${saveError.localizedDescription}")
+        suspendCoroutine { c -> m.loadFromPreferencesWithCompletionHandler { _ -> c.resume(Unit) } }
     }
 
     /** What the extension reads (PacketTunnelProvider.startTunnel): the same keys the Swift VPNController writes. */
