@@ -118,6 +118,11 @@ class IosPlatformServices : PlatformServices {
     override val fullTunnelSupported = true
     override val elevated = false
     override val clipboardImageSupported = false
+    // TestFlight / the App Store update the app, and buying a digital service in an
+    // iOS app may go only through Apple: neither is offered here.
+    override val selfUpdates = false
+    override val purchasesInApp = false
+    override val supportUrl = "https://t.me/+4waLgXpI46IzOThi"
     override fun restartElevated() = false
     override fun clipboardText(): String? = UIPasteboard.generalPasteboard.string
     override fun setClipboardText(text: String) { UIPasteboard.generalPasteboard.string = text }
