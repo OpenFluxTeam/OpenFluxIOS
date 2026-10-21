@@ -3,5 +3,5 @@
 	url = https://github.com/OpenFluxTeam/OpenFlux.git
 [submodule "kmp/shared"]
 	path = kmp/shared
-	url = https://github.com/saharev1/OpenFluxClientShared.git
-	branch = ios-target-team
+	url = https://github.com/OpenFluxTeam/OpenFluxClientShared.git
+	branch = main
