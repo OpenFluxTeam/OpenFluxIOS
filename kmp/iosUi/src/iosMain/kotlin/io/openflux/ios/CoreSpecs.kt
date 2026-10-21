@@ -41,10 +41,9 @@ internal object IosCoreSpecs {
                 })
             }
         }
-        if (profile.context.isBlank() && !profile.bonding) return transports.toString()
+        if (profile.context.isBlank()) return transports.toString()
         return buildJsonObject {
-            if (profile.context.isNotBlank()) put("context", profile.context)
-            if (profile.bonding) put("bonding", true)
+            put("context", profile.context)
             put("transports", transports)
         }.toString()
     }
