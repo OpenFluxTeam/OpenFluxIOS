@@ -12,7 +12,7 @@ kotlin {
             cinterops {
                 val oflux by creating {
                     defFile(project.file("src/nativeInterop/cinterop/oflux.def"))
-                    includeDirs(rootProject.file("../ios-app/Lib"))
+                    includeDirs(rootProject.file("ios-app/Lib"))
                 }
             }
         }

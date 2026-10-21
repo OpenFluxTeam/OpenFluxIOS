@@ -1,7 +1,7 @@
 [submodule "core"]
 	path = core
 	url = https://github.com/OpenFluxTeam/OpenFlux.git
-[submodule "kmp/shared"]
-	path = kmp/shared
+[submodule "shared"]
+	path = shared
 	url = https://github.com/OpenFluxTeam/OpenFluxClientShared.git
 	branch = main

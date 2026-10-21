@@ -5,7 +5,7 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import OpenFluxUI
 
-/// What the shared Kotlin UI asks of the Swift side (IosHooks in kmp/iosUi):
+/// What the shared Kotlin UI asks of the Swift side (IosHooks in iosUi/):
 /// the camera scanner, a photo with a QR, drawing a QR, a QR in a copied image.
 /// Each answers once, on the main thread.
 enum KotlinHooks {

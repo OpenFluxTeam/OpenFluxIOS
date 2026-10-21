@@ -34,6 +34,8 @@ Thumbs.db
 .env.local
 
 .gradle/
+.kotlin/
+local.properties
 *.hprof
 
 # iOS build artifacts
