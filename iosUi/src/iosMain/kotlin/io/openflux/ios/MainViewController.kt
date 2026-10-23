@@ -51,7 +51,6 @@ fun MainViewController(): UIViewController {
         accounts = accounts,
         phpHosting = phpHosting,
     )
-    IosRemote.attach(container)
     return ComposeUIViewController {
         OpenFluxApp(container, NoScrollbars, remember { Shortcuts() })
     }

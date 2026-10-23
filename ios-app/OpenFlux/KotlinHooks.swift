@@ -16,23 +16,7 @@ enum KotlinHooks {
         hooks.pickQrPhoto = { done in DispatchQueue.main.async { presentPhotoPicker { _ = done($0) } } }
         hooks.qrRows = { text in qrRows(text) }
         hooks.qrFromPasteboardImage = { UIPasteboard.general.image.flatMap(readQR) }
-        listenForRemote()
-    }
-
-    // MARK: - Test remote (Darwin notifications from a Mac via devicectl)
-
-    /// io.openflux.remote.{connect,disconnect,next,copylog} -> IosRemote, which
-    /// ignores them unless «Режим разработчика» is on.
-    private static func listenForRemote() {
-        let center = CFNotificationCenterGetDarwinNotifyCenter()
-        for command in ["connect", "disconnect", "next", "copylog"] {
-            let name = "io.openflux.remote.\(command)" as CFString
-            CFNotificationCenterAddObserver(center, nil, { _, _, name, _, _ in
-                guard let raw = name?.rawValue as String? else { return }
-                let command = String(raw.dropFirst("io.openflux.remote.".count))
-                DispatchQueue.main.async { _ = IosRemote.shared.handle(command: command) }
-            }, name, nil, .deliverImmediately)
-        }
+        hooks.lastTunnelReport = { Secrets.neDiag() }
     }
 
     /// The Swift UI's profiles as links for the Kotlin UI to import, once

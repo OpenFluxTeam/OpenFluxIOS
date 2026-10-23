@@ -38,6 +38,13 @@ object IosHooks {
 
     /** A QR code in the image on the pasteboard, read; null when there is none. */
     var qrFromPasteboardImage: (() -> String?)? = null
+
+    /**
+     * How the tunnel extension's last run ended, as it wrote it to the shared Keychain
+     * (PacketTunnelProvider's diagnostics): "stopped: <reason>", or "running" when the
+     * process died without being stopped — killed by iOS.
+     */
+    var lastTunnelReport: (() -> String?)? = null
 }
 
 @OptIn(ExperimentalForeignApi::class)

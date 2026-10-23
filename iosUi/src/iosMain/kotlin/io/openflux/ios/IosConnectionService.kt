@@ -9,6 +9,7 @@ import io.openflux.desktop.model.LogLevel
 import io.openflux.desktop.model.LogLine
 import io.openflux.desktop.model.Profile
 import io.openflux.desktop.model.TrafficStats
+import io.openflux.desktop.model.TransportType
 import io.openflux.desktop.service.ConnectionService
 import io.openflux.desktop.service.ProfileRepository
 import io.openflux.desktop.service.SettingsRepository
@@ -202,7 +203,10 @@ class IosConnectionService(
             "directDomains" to "",
             "profileID" to uuid,
             "keySlot" to "",
-            "nodeAddr" to "",
+            // The node's direct address must stay out of the tunnel (excludedRoutes): the
+            // extension dials it itself, and captured by its own tunnel the carrier loops and
+            // drops every half a minute, leaving the traffic on the slow document carriers.
+            "nodeAddr" to if (p.session && !p.stream) p.sessionSpecs().firstOrNull { it.type == TransportType.DIRECT }?.value?.trim().orEmpty() else "",
             "session" to if (p.session && !p.stream) IosCoreSpecs.session(p) else "",
             "stream" to if (p.stream) "1" else "0",
             "debug" to if (debug) "1" else "0",
@@ -246,6 +250,7 @@ class IosConnectionService(
                 // error (the core's own words, see PacketTunnelProvider) says why, instead of a
                 // silent «Отключено».
                 if (!stopping && _state.value.let { it is ConnectionState.Connecting || it is ConnectionState.Connected || it is ConnectionState.Reconnecting }) {
+                    reportLastRun()
                     explainStop(p)
                 }
                 ConnectionState.Idle
@@ -257,6 +262,15 @@ class IosConnectionService(
             logJob?.cancel(); logJob = null
             lastUp = 0; lastDown = 0
             _traffic.value = TrafficStats()
+        }
+    }
+
+    /** The extension's own account of how its run ended: a stop iOS asked for (and why), or a kill. */
+    private fun reportLastRun() {
+        val report = IosHooks.lastTunnelReport?.invoke()?.lines()?.firstOrNull { it.isNotBlank() } ?: return
+        note(report, LogLevel.Error)
+        if (", running," in report) {
+            note("Расширение VPN завершено системой без остановки — скорее всего, по лимиту памяти (50 МБ)", LogLevel.Error)
         }
     }
 
