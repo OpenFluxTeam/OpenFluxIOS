@@ -333,8 +333,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 }
             }
             if rc != 0 {
+                // The core's own words ("[PKT] start: …") are the reason; the app
+                // reads them back through fetchLastDisconnectError and shows them.
+                self.drainLog()
+                let why = self.logTail.suffix(3).joined(separator: "\n")
                 completionHandler(NSError(domain: "OpenFlux", code: Int(rc),
-                    userInfo: [NSLocalizedDescriptionKey: "start failed (\(rc))"]))
+                    userInfo: [NSLocalizedDescriptionKey: why.isEmpty ? "start failed (\(rc))" : why]))
                 return
             }
             self.startReadLoop()

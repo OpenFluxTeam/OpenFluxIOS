@@ -93,6 +93,8 @@ class IosConnectionService(
     private var since: Long = 0
     private var logJob: Job? = null
     private var lineId = 0L
+    /** A stop asked for here (disconnect, or a restart onto another profile): not a failure to explain. */
+    private var stopping = false
 
     init {
         NSNotificationCenter.defaultCenter.addObserverForName(NEVPNStatusDidChangeNotification, null, NSOperationQueue.mainQueue) { _ ->
@@ -136,6 +138,7 @@ class IosConnectionService(
                 // startVPNTunnel on a running tunnel does nothing. Stop it first.
                 if (isUp(m.connection.status)) {
                     note("Останавливаю текущее подключение, чтобы запустить «${profile.name}»")
+                    stopping = true
                     m.onDemandEnabled = false
                     save(m)
                     m.connection.stopVPNTunnel()
@@ -156,6 +159,7 @@ class IosConnectionService(
                 m.onDemandRules = listOf(NEOnDemandRuleConnect())
                 save(m)
                 manager = m
+                stopping = false
                 memScoped {
                     val err = alloc<ObjCObjectVar<NSError?>>()
                     if (!m.connection.startVPNTunnelAndReturnError(err.ptr)) {
@@ -215,6 +219,7 @@ class IosConnectionService(
     override fun disconnect() {
         val m = manager ?: return
         active?.let { _state.value = ConnectionState.Disconnecting(it) }
+        stopping = true
         // On-demand off first, or iOS would bring the tunnel straight back.
         m.onDemandEnabled = false
         m.saveToPreferencesWithCompletionHandler { _ ->
@@ -235,7 +240,16 @@ class IosConnectionService(
             status == NEVPNStatusReasserting -> ConnectionState.Reconnecting(p, ConnectionMode.Client, since)
             status == NEVPNStatusDisconnecting -> ConnectionState.Disconnecting(p)
             _state.value is ConnectionState.Failed -> _state.value
-            else -> { _exitAddress.value = ExitAddress.Unknown; ConnectionState.Idle }
+            else -> {
+                _exitAddress.value = ExitAddress.Unknown
+                // Down without being asked: the extension failed to start or iOS stopped it. Its
+                // error (the core's own words, see PacketTunnelProvider) says why, instead of a
+                // silent «Отключено».
+                if (!stopping && _state.value.let { it is ConnectionState.Connecting || it is ConnectionState.Connected || it is ConnectionState.Reconnecting }) {
+                    explainStop(p)
+                }
+                ConnectionState.Idle
+            }
         }
         val running = status == NEVPNStatusConnecting || status == NEVPNStatusConnected || status == NEVPNStatusReasserting
         if (running && logJob == null) logJob = scope.launch { pollLog() }
@@ -243,6 +257,17 @@ class IosConnectionService(
             logJob?.cancel(); logJob = null
             lastUp = 0; lastDown = 0
             _traffic.value = TrafficStats()
+        }
+    }
+
+    private fun explainStop(p: Profile) {
+        manager?.connection?.fetchLastDisconnectErrorWithCompletionHandler { err: NSError? ->
+            val why = err?.localizedDescription?.takeIf { it.isNotBlank() } ?: return@fetchLastDisconnectErrorWithCompletionHandler
+            scope.launch {
+                if (_state.value !is ConnectionState.Idle) return@launch
+                why.lines().filter { it.isNotBlank() }.forEach { note(it, LogLevel.Error) }
+                _state.value = ConnectionState.Failed(p, why.lines().lastOrNull { it.isNotBlank() } ?: why)
+            }
         }
     }
 
