@@ -234,6 +234,8 @@ class IosConnectionService(
     private fun refresh() {
         val status: NEVPNStatus = manager?.connection?.status ?: return
         val p = active
+        // A new start (ours, or iOS on demand) after a stop asked for here: its failure is news again.
+        if (status == NEVPNStatusConnecting) stopping = false
         _state.value = when {
             p == null -> if (status == NEVPNStatusConnected) _state.value else ConnectionState.Idle
             status == NEVPNStatusConnecting -> ConnectionState.Connecting(p, ConnectionMode.Client, since)
@@ -249,7 +251,8 @@ class IosConnectionService(
                 // Down without being asked: the extension failed to start or iOS stopped it. Its
                 // error (the core's own words, see PacketTunnelProvider) says why, instead of a
                 // silent «Отключено».
-                if (!stopping && _state.value.let { it is ConnectionState.Connecting || it is ConnectionState.Connected || it is ConnectionState.Reconnecting }) {
+                // (iOS passes through «Disconnecting» on the way down whoever stopped it: `stopping` tells.)
+                if (!stopping && _state.value.let { it is ConnectionState.Connecting || it is ConnectionState.Connected || it is ConnectionState.Reconnecting || it is ConnectionState.Disconnecting }) {
                     reportLastRun()
                     explainStop(p)
                 }
@@ -277,7 +280,18 @@ class IosConnectionService(
     private fun explainStop(p: Profile) {
         manager?.connection?.fetchLastDisconnectErrorWithCompletionHandler { err: NSError? ->
             val why = err?.localizedDescription?.takeIf { it.isNotBlank() } ?: return@fetchLastDisconnectErrorWithCompletionHandler
+            // The core did not start (PacketTunnelProvider's "OpenFlux" error: no carrier came
+            // up, or the exit never answered the handshake in its 20 s). On-demand would start
+            // it again at once, failing the same way every ~20 s for as long as the phone is on;
+            // a tunnel that ran and dropped is not this, and keeps on-demand.
+            if (err.domain == "OpenFlux") {
+                manager?.let { m ->
+                    m.onDemandEnabled = false
+                    m.saveToPreferencesWithCompletionHandler { _ -> }
+                }
+            }
             scope.launch {
+                if (err.domain == "OpenFlux") note("Автоподключение выключено: узел не отвечает. Подключитесь снова, когда он оживёт", LogLevel.Error)
                 if (_state.value !is ConnectionState.Idle) return@launch
                 why.lines().filter { it.isNotBlank() }.forEach { note(it, LogLevel.Error) }
                 _state.value = ConnectionState.Failed(p, why.lines().lastOrNull { it.isNotBlank() } ?: why)
