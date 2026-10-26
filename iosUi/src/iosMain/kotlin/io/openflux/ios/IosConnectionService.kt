@@ -253,8 +253,7 @@ class IosConnectionService(
                 // silent «Отключено».
                 // (iOS passes through «Disconnecting» on the way down whoever stopped it: `stopping` tells.)
                 if (!stopping && _state.value.let { it is ConnectionState.Connecting || it is ConnectionState.Connected || it is ConnectionState.Reconnecting || it is ConnectionState.Disconnecting }) {
-                    reportLastRun()
-                    explainStop(p)
+                    explainStop(p, ranUntilGone = reportLastRun())
                 }
                 ConnectionState.Idle
             }
@@ -268,17 +267,25 @@ class IosConnectionService(
         }
     }
 
-    /** The extension's own account of how its run ended: a stop iOS asked for (and why), or a kill. */
-    private fun reportLastRun() {
-        val report = IosHooks.lastTunnelReport?.invoke()?.lines()?.firstOrNull { it.isNotBlank() } ?: return
+    /**
+     * The extension's own account of how its run ended (its line in the journal); true when it
+     * was still "running" — the process went away without stopTunnel.
+     */
+    private fun reportLastRun(): Boolean {
+        val report = IosHooks.lastTunnelReport?.invoke()?.lines()?.firstOrNull { it.isNotBlank() } ?: return false
         note(report, LogLevel.Error)
-        if (", running," in report) {
-            note("Расширение VPN завершено системой без остановки — скорее всего, по лимиту памяти (50 МБ)", LogLevel.Error)
-        }
+        return ", running," in report
     }
 
-    private fun explainStop(p: Profile) {
+    /**
+     * Why the tunnel went down. A process gone without stopTunnel after the core reported a failed
+     * start is iOS tearing it down, not a kill; without that report it was killed — the 50 MB.
+     */
+    private fun explainStop(p: Profile, ranUntilGone: Boolean) {
         manager?.connection?.fetchLastDisconnectErrorWithCompletionHandler { err: NSError? ->
+            if (ranUntilGone && err?.domain != "OpenFlux") {
+                scope.launch { note("Расширение VPN завершено системой без остановки — скорее всего, по лимиту памяти (50 МБ)", LogLevel.Error) }
+            }
             val why = err?.localizedDescription?.takeIf { it.isNotBlank() } ?: return@fetchLastDisconnectErrorWithCompletionHandler
             // The core did not start (PacketTunnelProvider's "OpenFlux" error: no carrier came
             // up, or the exit never answered the handshake in its 20 s). On-demand would start

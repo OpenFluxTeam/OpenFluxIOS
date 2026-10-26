@@ -80,16 +80,20 @@ final class DeviceTests: XCTestCase {
     }
 
     /// The journal's visible lines (Settings → Журнал, the newest at the bottom), and two screens above.
-    func journal(_ tag: String) {
+    /// …and what it says about the extension: its memory peak and any kill. "" when it could not be read.
+    @discardableResult
+    func journal(_ tag: String) -> String {
         let settings = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Настройки'")).firstMatch
-        guard settings.exists else { return }
+        guard settings.exists else { return "" }
         settings.tap()
         sleep(1)
         let j = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Журнал'")).firstMatch
-        guard j.waitForExistence(timeout: 5) else { note("\(tag) journal", "no journal row"); return }
+        guard j.waitForExistence(timeout: 5) else { note("\(tag) journal", "no journal row"); return "" }
         j.tap()
         sleep(2)
         var pages: [String] = []
+        var peak = 0.0
+        var kills = 0
         for i in 0..<3 {
             let lines = app.debugDescription.split(separator: "\n")
                 .filter { $0.contains("StaticText") }
@@ -99,8 +103,12 @@ final class DeviceTests: XCTestCase {
                     guard let end = rest.range(of: "'", options: .backwards) else { return String(rest) }
                     return String(rest[..<end.lowerBound])
                 }
-                .filter { !$0.contains("[NE] память") }
-            pages.insert("--- screen \(i) ---\n" + lines.joined(separator: "\n"), at: 0)
+            for l in lines {
+                if let r = l.range(of: "пик "), let v = Double(l[r.upperBound...].prefix { "0123456789.".contains($0) }) { peak = max(peak, v) }
+                if l.contains("завершено системой") { kills += 1 }
+            }
+            let shown = lines.filter { !$0.contains("[NE] память") }
+            pages.insert("--- screen \(i) ---\n" + shown.joined(separator: "\n"), at: 0)
             app.swipeDown()
             sleep(1)
         }
@@ -108,6 +116,7 @@ final class DeviceTests: XCTestCase {
         if app.buttons["Назад"].exists { app.buttons["Назад"].tap(); sleep(1) }
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Главная'")).firstMatch.tap()
         sleep(1)
+        return String(format: "пик памяти NE %.1f МБ, убийств в журнале %d", peak, kills)
     }
 
     // MARK: - Through the tunnel (the runner's own traffic)
@@ -168,8 +177,8 @@ final class DeviceTests: XCTestCase {
             shot("\(tag) after connect")
             guard s.hasPrefix("Подключено") else {
                 note("\(tag) screen", app.debugDescription)
-                journal(tag)
-                summary.append(String(format: "%@: НЕ подключился за %.0f с (%@)", tag, took, s))
+                let mem = journal(tag)
+                summary.append(String(format: "%@: НЕ подключился за %.0f с (%@); %@", tag, took, s, mem))
                 if app.buttons["Отключить"].exists { app.buttons["Отключить"].firstMatch.tap() }
                 sleep(3)
                 continue
@@ -182,11 +191,12 @@ final class DeviceTests: XCTestCase {
                 if !state().hasPrefix("Подключено") { drops += 1 }
             }
             shot("\(tag) after hold")
-            if drops > 0 || !state().hasPrefix("Подключено") || m.contains("timed out") || m.contains("TLS") || m.contains("offline") {
-                journal(tag)
+            var mem = ""
+            if env["OFX_JOURNAL"] == "1" || drops > 0 || !state().hasPrefix("Подключено") || m.contains("timed out") || m.contains("TLS") || m.contains("offline") {
+                mem = journal(tag)
             }
-            summary.append(String(format: "%@: подключился за %.0f с; %@; за %d с вне «Подключено» %d раз", tag, took,
-                                  m.replacingOccurrences(of: "\n", with: "; "), hold, drops))
+            summary.append(String(format: "%@: подключился за %.0f с; %@; за %d с вне «Подключено» %d раз; %@", tag, took,
+                                  m.replacingOccurrences(of: "\n", with: "; "), hold, drops, mem))
             if app.buttons["Отключить"].exists { app.buttons["Отключить"].firstMatch.tap() }
             _ = waitState({ !$0.hasPrefix("Подключ") && !$0.hasPrefix("Отключаюсь") }, timeout: 20)
         }
