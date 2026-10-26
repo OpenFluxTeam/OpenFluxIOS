@@ -136,3 +136,30 @@ targets:
           - "-framework"
           - "Security"
         CODE_SIGN_STYLE: Automatic
+  # On-device UI checks run from the Mac (xcodebuild test on the developer's phone).
+  OpenFluxUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: OpenFluxUITests
+    dependencies:
+      - target: OpenFlux
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.p1neapplexpress-saharev.openflux.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        TEST_TARGET_NAME: OpenFlux
+
+schemes:
+  OpenFlux:
+    build:
+      targets:
+        OpenFlux: all
+    archive:
+      config: Release
+    test:
+      config: Release
+      targets:
+        - OpenFluxUITests
+
