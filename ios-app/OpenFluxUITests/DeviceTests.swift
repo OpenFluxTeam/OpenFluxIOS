@@ -228,13 +228,22 @@ final class DeviceTests: XCTestCase {
             sleep(1)
             app.typeText(text)
         }
-        type("Адрес сервера", nth: 0, "192.0.2.10")
+        type("Адрес сервера", nth: 0, env["OFX_SSH_HOST"] ?? "192.0.2.10")
+        if let user = env["OFX_SSH_USER"] { type("Логин", nth: 1, user) }
         type("Пароль", nth: 1, "not-a-real-password")
         let go = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Подключ'")).firstMatch
         if go.exists { go.tap() }
-        sleep(5)
+        sleep(UInt32(env["OFX_WAIT"] ?? "") ?? 5)
         shot("after connect")
         note("after connect", app.debugDescription)
+        // A new server's key: trust it, and the wrong password must come back as an error on the form.
+        let trust = app.buttons["Доверять"].firstMatch
+        if trust.exists {
+            trust.tap()
+            sleep(UInt32(env["OFX_WAIT"] ?? "") ?? 5)
+            shot("after trust")
+            note("after trust", app.debugDescription)
+        }
         XCTAssertEqual(app.state, .runningForeground, "the app went away")
     }
 }
