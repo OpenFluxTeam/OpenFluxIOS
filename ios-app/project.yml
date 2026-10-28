@@ -8,7 +8,7 @@ options:
 settings:
   base:
     MARKETING_VERSION: "1.2.0"
-    CURRENT_PROJECT_VERSION: "116"
+    CURRENT_PROJECT_VERSION: "117"
     DEVELOPMENT_TEAM: "8GQH8GQ252"
 
 targets:
@@ -27,6 +27,7 @@ targets:
       - framework: ../iosUi/build/bin/iosArm64/releaseFramework/OpenFluxUI.framework
         embed: false
       - target: OpenFluxTunnel
+      - target: OpenFluxControls
     info:
       path: OpenFlux/Info.plist
       properties:
@@ -135,6 +136,34 @@ targets:
           - "CoreFoundation"
           - "-framework"
           - "Security"
+        CODE_SIGN_STYLE: Automatic
+  # Control Center's OpenFlux switch (iOS 18 controls): starts and stops the VPN
+  # configuration the app saved, as Settings → VPN does.
+  OpenFluxControls:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: OpenFluxControls
+    info:
+      path: OpenFluxControls/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDisplayName: OpenFlux
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: OpenFluxControls/OpenFluxControls.entitlements
+      properties:
+        com.apple.developer.networking.networkextension:
+          - packet-tunnel-provider
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.p1neapplexpress-saharev.openflux.controls
+        PRODUCT_NAME: OpenFluxControls
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
   # On-device UI checks run from the Mac (xcodebuild test on the developer's phone).
   OpenFluxUITests:

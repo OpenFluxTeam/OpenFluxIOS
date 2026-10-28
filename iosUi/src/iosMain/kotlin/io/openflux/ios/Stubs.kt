@@ -1,5 +1,7 @@
 package io.openflux.ios
 
+import io.openflux.desktop.model.NodeWizardException
+
 import io.openflux.desktop.model.AppSettings
 import io.openflux.app.platform.BrowserPage
 import io.openflux.desktop.model.CaptchaPrompt
@@ -89,7 +91,13 @@ object NoShareCodec : ShareLinkCodec {
 }
 
 class NoNodeWizard : NodeWizardService {
-    private fun no(): Nothing = error("мастер узла ещё не подключён на iOS")
+    // A NodeWizardException, which the server screens show as their error; any other
+    // exception escapes their coroutine and takes the whole app down (TestFlight crash
+    // reports from build 115/116: «вводишь адрес, пароль — приложение закрывается»).
+    private fun no(): Nothing = throw NodeWizardException(
+        "Установка узла с iPhone пока недоступна. Поставьте узел с компьютера (OpenFlux для Windows, macOS или Linux) " +
+            "и добавьте его сюда ссылкой или QR-кодом",
+    )
     override suspend fun connect(target: SshTarget, source: NodeCoreSource): ServerProbe = no()
     override suspend fun newChannel(): NewChannel = no()
     override suspend fun plan(channel: String, transports: List<NodeTransport>, withCookies: Boolean, autoUpdate: Boolean, mode: NodeMode): NodePlan = no()

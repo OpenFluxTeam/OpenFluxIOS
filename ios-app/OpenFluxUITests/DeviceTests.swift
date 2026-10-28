@@ -202,4 +202,39 @@ final class DeviceTests: XCTestCase {
         }
         note("SUMMARY", summary.joined(separator: "\n"))
     }
+
+    /// «Свой сервер»: an address and a password typed in must end in a message on the
+    /// form, not in the app closing (TestFlight crash reports, builds 115-116).
+    func testAddServerDoesNotCrash() {
+        app.launch()
+        sleep(3)
+        app.buttons["Добавить"].firstMatch.tap()
+        sleep(2)
+        note("add sheet", app.debugDescription)
+        shot("add sheet")
+        let own = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Свой сервер'")).firstMatch
+        guard own.waitForExistence(timeout: 5) else { XCTFail("no «Свой сервер»"); return }
+        own.tap()
+        sleep(2)
+        note("server form", app.debugDescription)
+        shot("server form")
+        let fields = app.textFields.allElementsBoundByIndex + app.secureTextFields.allElementsBoundByIndex
+        note("fields", fields.map { "\($0.elementType.rawValue) '\($0.label)' '\($0.placeholderValue ?? "")'" }.joined(separator: "\n"))
+        // Compose's fields come through as elements labelled like their hint: tap, then type.
+        func type(_ label: String, nth: Int, _ text: String) {
+            let all = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex.filter { $0.exists && $0.isHittable }
+            guard all.count > nth else { note("no field \(label)", "\(all.count)"); return }
+            all[nth].tap()
+            sleep(1)
+            app.typeText(text)
+        }
+        type("Адрес сервера", nth: 0, "192.0.2.10")
+        type("Пароль", nth: 1, "not-a-real-password")
+        let go = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Подключ'")).firstMatch
+        if go.exists { go.tap() }
+        sleep(5)
+        shot("after connect")
+        note("after connect", app.debugDescription)
+        XCTAssertEqual(app.state, .runningForeground, "the app went away")
+    }
 }
