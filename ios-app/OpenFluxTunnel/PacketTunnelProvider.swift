@@ -386,7 +386,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let s = String(cString: c)
         OpenFluxFreeString(c)
         guard !s.isEmpty else { return }
-        let lines = s.split(separator: "\n").map(String.init)
+        // The core's mobile bridge is shared with Android and tags its lines
+        // "[ANDROID]"; on an iPhone that only confuses whoever reads the journal.
+        let lines = s.split(separator: "\n").map { String($0).replacingOccurrences(of: "[ANDROID]", with: "[iOS]") }
         logTail.append(contentsOf: lines)
         if logTail.count > 600 {
             logTail.removeFirst(logTail.count - 600)

@@ -94,6 +94,7 @@ final class DeviceTests: XCTestCase {
         var pages: [String] = []
         var peak = 0.0
         var kills = 0
+        var android = 0
         for i in 0..<3 {
             let lines = app.debugDescription.split(separator: "\n")
                 .filter { $0.contains("StaticText") }
@@ -106,6 +107,7 @@ final class DeviceTests: XCTestCase {
             for l in lines {
                 if let r = l.range(of: "пик "), let v = Double(l[r.upperBound...].prefix { "0123456789.".contains($0) }) { peak = max(peak, v) }
                 if l.contains("завершено системой") { kills += 1 }
+                if l.contains("[ANDROID]") { android += 1 }
             }
             let shown = lines.filter { !$0.contains("[NE] память") }
             pages.insert("--- screen \(i) ---\n" + shown.joined(separator: "\n"), at: 0)
@@ -116,7 +118,7 @@ final class DeviceTests: XCTestCase {
         if app.buttons["Назад"].exists { app.buttons["Назад"].tap(); sleep(1) }
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Главная'")).firstMatch.tap()
         sleep(1)
-        return String(format: "пик памяти NE %.1f МБ, убийств в журнале %d", peak, kills)
+        return String(format: "пик памяти NE %.1f МБ, убийств в журнале %d, строк [ANDROID] %d", peak, kills, android)
     }
 
     // MARK: - Through the tunnel (the runner's own traffic)
