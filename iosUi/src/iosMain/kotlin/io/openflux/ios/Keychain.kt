@@ -1,13 +1,20 @@
 package io.openflux.ios
 
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.value
 import platform.CoreFoundation.CFDictionaryAddValue
 import platform.CoreFoundation.CFDictionaryCreateMutable
 import platform.CoreFoundation.CFRelease
+import platform.CoreFoundation.CFTypeRefVar
+import platform.CoreFoundation.kCFBooleanTrue
 import platform.CoreFoundation.kCFTypeDictionaryKeyCallBacks
 import platform.CoreFoundation.kCFTypeDictionaryValueCallBacks
+import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
+import platform.Foundation.NSData
 import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.NSUUID
@@ -15,6 +22,7 @@ import platform.Foundation.NSUserDefaults
 import platform.Foundation.create
 import platform.Foundation.dataUsingEncoding
 import platform.Security.SecItemAdd
+import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
 import platform.Security.kSecAttrAccessGroup
 import platform.Security.kSecAttrAccessible
@@ -23,6 +31,9 @@ import platform.Security.kSecAttrAccount
 import platform.Security.kSecAttrService
 import platform.Security.kSecClass
 import platform.Security.kSecClassGenericPassword
+import platform.Security.kSecMatchLimit
+import platform.Security.kSecMatchLimitOne
+import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
 
 /**
@@ -36,15 +47,38 @@ object SharedKeychain {
     private const val SERVICE = "openflux.encryption"
     private const val GROUP = "8GQH8GQ252.com.p1neapplexpress-saharev.openflux"
 
-    fun setSecret(profileUuid: String, secret: String): Boolean {
+    fun setSecret(profileUuid: String, secret: String): Boolean = set(SERVICE, profileUuid, secret)
+
+    /** The text of the shared item [service]/[account]; null when there is none. */
+    fun get(service: String, account: String): String? {
         val query = CFDictionaryCreateMutable(null, 0, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
-        val owned = listOf(CFBridgingRetain(SERVICE), CFBridgingRetain(profileUuid), CFBridgingRetain(GROUP))
+        val owned = listOf(CFBridgingRetain(service), CFBridgingRetain(account), CFBridgingRetain(GROUP))
+        CFDictionaryAddValue(query, kSecClass, kSecClassGenericPassword)
+        CFDictionaryAddValue(query, kSecAttrService, owned[0])
+        CFDictionaryAddValue(query, kSecAttrAccount, owned[1])
+        CFDictionaryAddValue(query, kSecAttrAccessGroup, owned[2])
+        CFDictionaryAddValue(query, kSecReturnData, kCFBooleanTrue)
+        CFDictionaryAddValue(query, kSecMatchLimit, kSecMatchLimitOne)
+        val text = memScoped {
+            val out = alloc<CFTypeRefVar>()
+            if (SecItemCopyMatching(query, out.ptr) != 0) null
+            else (CFBridgingRelease(out.value) as? NSData)?.let { NSString.create(data = it, encoding = NSUTF8StringEncoding)?.toString() }
+        }
+        owned.forEach { CFRelease(it) }
+        CFRelease(query)
+        return text
+    }
+
+    /** Replaces the shared item [service]/[account] with [text]; "" deletes it. */
+    fun set(service: String, account: String, text: String): Boolean {
+        val query = CFDictionaryCreateMutable(null, 0, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
+        val owned = listOf(CFBridgingRetain(service), CFBridgingRetain(account), CFBridgingRetain(GROUP))
         CFDictionaryAddValue(query, kSecClass, kSecClassGenericPassword)
         CFDictionaryAddValue(query, kSecAttrService, owned[0])
         CFDictionaryAddValue(query, kSecAttrAccount, owned[1])
         CFDictionaryAddValue(query, kSecAttrAccessGroup, owned[2])
         SecItemDelete(query)
-        val trimmed = secret.trim()
+        val trimmed = text.trim()
         var ok = true
         if (trimmed.isNotEmpty()) {
             val data = NSString.create(string = trimmed).dataUsingEncoding(NSUTF8StringEncoding)

@@ -59,6 +59,27 @@ enum Secrets {
         return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
+    // MARK: - Куки входа в аккаунты
+    //
+    // Приложение (Kotlin UI, TunnelCookies) кладёт сюда хранилище кук ядра
+    // ({"тип URL": {имя: значение}}) с куками входа в Яндекс и Mail.ru для
+    // носителей профиля, который сейчас запускает. Расширение сливает его в
+    // свой файл хранилища до старта ядра.
+
+    static func accountCookieStore() -> String? {
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                kSecAttrService as String: "openflux.accounts",
+                                kSecAttrAccount as String: "cookiestore",
+                                kSecAttrAccessGroup as String: accessGroup]
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data, let s = String(data: data, encoding: .utf8), !s.isEmpty
+        else { return nil }
+        return s
+    }
+
     // MARK: - Диагностика расширения
     //
     // Почему iOS остановила туннель и сколько он занимал памяти. Расширение отдаёт

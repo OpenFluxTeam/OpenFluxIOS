@@ -190,6 +190,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             OpenFluxSetInitialCookies(UnsafeMutablePointer(mutating: c))
         }
 
+        // Хранилище кук ядра: пройденные проверки и куки входа в аккаунты. Файл —
+        // в контейнере расширения; куки аккаунтов приходят от приложения через
+        // общий Keychain и перекрывают сохранённые (как CookieStoreSeeder на
+        // десктопе). Ядро читает файл на старте и подставляет куки носителям.
+        if let path = Self.prepareCookieStore() {
+            path.withCString { p in
+                if OpenFluxSetCookieStore(UnsafeMutablePointer(mutating: p)) != 0 {
+                    NSLog("OpenFlux: cookie store not usable")
+                }
+            }
+        }
+
         // Override the DNS-over-TLS upstream if the user configured one (empty =
         // built-in defaults). Must run in the extension process before start.
         dnsSpec.withCString { d in
@@ -357,6 +369,25 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         stopLogDrain()
         OpenFluxStopPacketTunnel()
         completionHandler()
+    }
+
+    /// The core's cookie store file with the signed-in accounts' cookies merged in; nil when it cannot be written.
+    static func prepareCookieStore() -> String? {
+        guard let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("cookies.json")
+        var store = (try? Data(contentsOf: file))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: [String: String]] } ?? [:]
+        if let text = Secrets.accountCookieStore(), let data = text.data(using: .utf8),
+           let accounts = try? JSONSerialization.jsonObject(with: data) as? [String: [String: String]] {
+            for (key, jar) in accounts {
+                store[key, default: [:]].merge(jar) { _, account in account }
+            }
+        }
+        guard let out = try? JSONSerialization.data(withJSONObject: store),
+              (try? out.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])) != nil
+        else { return nil }
+        return file.path
     }
 
     // MARK: - Log relay to the app

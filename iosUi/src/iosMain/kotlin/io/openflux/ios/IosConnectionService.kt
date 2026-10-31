@@ -7,6 +7,8 @@ import io.openflux.desktop.model.ConnectionState
 import io.openflux.desktop.model.ExitAddress
 import io.openflux.desktop.model.LogLevel
 import io.openflux.desktop.model.LogLine
+import io.openflux.desktop.model.AccountKind
+import io.openflux.desktop.model.AccountSession
 import io.openflux.desktop.model.Profile
 import io.openflux.desktop.model.TrafficStats
 import io.openflux.desktop.model.TransportType
@@ -70,6 +72,8 @@ import platform.NetworkExtension.NEVPNStatusReasserting
 class IosConnectionService(
     private val profiles: ProfileRepository,
     private val settings: SettingsRepository,
+    /** The saved sign-ins: their cookies go to the profile's carriers of those services. */
+    private val sessions: () -> Map<AccountKind, AccountSession> = { emptyMap() },
 ) : ConnectionService {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -131,6 +135,7 @@ class IosConnectionService(
             note("Не удалось сохранить ключ в Keychain", LogLevel.Error)
         }
         val conf = providerConfiguration(profile, uuid)
+        TunnelCookies.hand(profile, sessions())
         scope.launch {
             try {
                 val m = loadManager() ?: NETunnelProviderManager()
