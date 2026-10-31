@@ -7,6 +7,7 @@ import io.openflux.desktop.model.ConnectionState
 import io.openflux.desktop.model.ExitAddress
 import io.openflux.desktop.model.LogLevel
 import io.openflux.desktop.model.LogLine
+import io.openflux.desktop.model.AccountCookies
 import io.openflux.desktop.model.AccountKind
 import io.openflux.desktop.model.AccountSession
 import io.openflux.desktop.model.Profile
@@ -370,6 +371,30 @@ class IosConnectionService(
                 else ExitAddress.Unavailable(error?.localizedDescription ?: "нет ответа")
             }
         }.resume()
+    }
+
+    // As the desktop (CoreConnectionService.pushTo): the core in the extension sends the sign-in to the exit.
+    override suspend fun pushAccountToExit(kind: AccountKind): Int {
+        val profile = active ?: throw IllegalStateException("Нет подключения к ноде")
+        check(profile.session && !profile.stream) { "Передать вход можно только ноде, у которой профиль Session" }
+        val cookies = sessions()[kind]?.takeUnless { it.expired || it.cookies.isEmpty() }?.cookies
+            ?: throw IllegalStateException("Сначала войдите в ${kind.label}")
+        val types = profile.sessionSpecs().map { it.type }.filter { it in kind.signedInTransports }.map { it.cliName }.distinct()
+        check(types.isNotEmpty()) { "В профиле нет транспортов для ${kind.label}" }
+        val session = manager?.connection as? NETunnelProviderSession ?: throw IllegalStateException("Нет подключения к ноде")
+        val msg = NSString.create(string = "exitcookies:${types.joinToString(",")}\n${AccountCookies.header(cookies)}")
+            .dataUsingEncoding(NSUTF8StringEncoding) ?: throw IllegalStateException("Не удалось передать вход")
+        val reply = suspendCoroutine { c ->
+            val sent = runCatching {
+                session.sendProviderMessage(msg, null) { data: NSData? ->
+                    c.resume(data?.let { NSString.create(it, NSUTF8StringEncoding)?.toString() }.orEmpty())
+                }
+            }
+            if (sent.isFailure) c.resume("расширение не ответило")
+        }
+        val n = reply.toIntOrNull() ?: throw IllegalStateException("Не удалось передать вход: ${reply.ifBlank { "расширение не ответило" }}")
+        note("Вход в ${kind.label} передан ноде (транспортов: $n)", LogLevel.Success)
+        return n
     }
 
     override fun clearLogs() { _logs.value = emptyList() }

@@ -14,6 +14,8 @@ import io.openflux.desktop.model.NodeWizardException
 import io.openflux.desktop.model.ServerProbe
 import io.openflux.desktop.model.SshTarget
 import io.openflux.desktop.model.YandexDocument
+import io.openflux.desktop.service.AccountException
+import io.openflux.desktop.service.Accounts
 import io.openflux.desktop.service.NodeWizardService
 import io.openflux.ios.core.OpenFluxFreeString
 import io.openflux.ios.core.OpenFluxNodeApply
@@ -79,10 +81,10 @@ import platform.posix.getnameinfo
  * the wizard's own steps without a document still install a node.
  */
 @OptIn(ExperimentalForeignApi::class)
-class IosNodeWizard : NodeWizardService {
+class IosNodeWizard(private val accounts: Accounts) : NodeWizardService {
     private val json = Json { ignoreUnknownKeys = true }
     private val lock = Mutex()
-    override val documentPage: StateFlow<BrowserPage?> = MutableStateFlow(null)
+    override val documentPage: StateFlow<BrowserPage?> = accounts.page
 
     private var lineId = 0L
     private val _logs = MutableStateFlow<List<LogLine>>(emptyList())
@@ -197,10 +199,15 @@ class IosNodeWizard : NodeWizardService {
     }
 
     /** No built-in browser on iOS yet: the wizard's document step is made on a computer. */
+    // As the desktop wizard: the document is made with the Yandex account, in the sign-in window.
     override suspend fun createDocument(fileName: String, onStep: (String) -> Unit): YandexDocument =
-        throw NodeWizardException("Документ Яндекса с iPhone пока не создаётся: выберите каналы без документа (прямое подключение, cups.online) или создайте документ на компьютере")
+        try {
+            accounts.createWizardDocument(fileName, onStep)
+        } catch (e: AccountException) {
+            throw NodeWizardException(e.message ?: "Не получилось создать документ")
+        }
 
-    override fun cancelDocument() = Unit
+    override fun cancelDocument() = accounts.cancel()
 
     override fun close() {
         log(LogLevel.Info, "мастер: закрываю ядро")

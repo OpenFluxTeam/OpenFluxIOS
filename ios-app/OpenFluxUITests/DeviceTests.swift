@@ -185,6 +185,21 @@ final class DeviceTests: XCTestCase {
                 sleep(3)
                 continue
             }
+            // OFX_PUSH=1: «Передать вход в Яндекс ноде», then give the exit's document carriers time to come up.
+            if env["OFX_PUSH"] == "1" {
+                let push = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Передать вход'")).firstMatch
+                for _ in 0..<4 where !push.exists { app.swipeUp(); sleep(1) }
+                if push.exists {
+                    push.tap()
+                    sleep(3)
+                    shot("\(tag) pushed")
+                    note("\(tag) push", app.staticTexts.allElementsBoundByIndex.map { $0.label }.filter { $0.contains("вход") || $0.contains("Вход") }.joined(separator: "\n"))
+                    sleep(UInt32(env["OFX_PUSH_WAIT"] ?? "") ?? 40)
+                } else {
+                    note("\(tag) push", "no «Передать вход» row")
+                }
+                for _ in 0..<4 { app.swipeDown() }
+            }
             let m = measure(tag)
             // Keep it up and watch: a drop or a restart shows as a state other than «Подключено».
             var drops = 0
@@ -247,5 +262,49 @@ final class DeviceTests: XCTestCase {
             note("after trust", app.debugDescription)
         }
         XCTAssertEqual(app.state, .runningForeground, "the app went away")
+    }
+
+    /// Settings → Сервисы → «Войти в Яндекс»: the sign-in page must open in the app's
+    /// browser; with OFX_WAIT it then waits that long for a person to sign in on the phone.
+    func testYandexSignIn() {
+        app.launch()
+        sleep(3)
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Настройки'")).firstMatch.tap()
+        sleep(1)
+        let services = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Сервисы'")).firstMatch
+        guard services.waitForExistence(timeout: 5) else { XCTFail("no «Сервисы»"); note("settings", app.debugDescription); return }
+        services.tap()
+        sleep(2)
+        shot("services")
+        let signIn = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Войти в Яндекс'")).firstMatch
+        guard signIn.waitForExistence(timeout: 5) else {
+            note("services", app.debugDescription)
+            return // already signed in
+        }
+        signIn.tap()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 20), "no sign-in page")
+        sleep(5)
+        shot("sign-in page")
+        note("sign-in page", web.debugDescription.split(separator: "\n").prefix(40).joined(separator: "\n"))
+        let wait = Int(env["OFX_WAIT"] ?? "") ?? 0
+        let end = Date().addingTimeInterval(TimeInterval(wait))
+        while Date() < end && app.webViews.firstMatch.exists { sleep(2) }
+        sleep(2)
+        shot("after sign-in")
+        let signedIn = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Выйти'")).firstMatch.exists
+        note("signed in", signedIn ? "yes" : "no")
+        if wait > 0 { XCTAssertTrue(signedIn, "not signed in") }
+    }
+
+    /// What is on the phone: the connections to choose from and the Servers tab.
+    func testDump() {
+        app.launch()
+        sleep(3)
+        _ = choose("__none__")
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Серверы'")).firstMatch.tap()
+        sleep(2)
+        note("servers", app.debugDescription)
+        shot("servers")
     }
 }

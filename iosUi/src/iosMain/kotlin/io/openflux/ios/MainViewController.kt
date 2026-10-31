@@ -47,7 +47,7 @@ fun MainViewController(): UIViewController {
         connection = NodeKeepingConnection(IosConnectionService(profiles, settings) { accounts.sessions.value }, phpHosting, scope),
         platform = platform,
         shareCodec = codec,
-        nodeWizard = IosNodeWizard(),
+        nodeWizard = IosNodeWizard(accounts),
         accounts = accounts,
         phpHosting = phpHosting,
     )

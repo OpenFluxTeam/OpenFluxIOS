@@ -598,6 +598,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 completionHandler?("\(n)".data(using: .utf8) ?? Data())
                 return
             }
+            // «Передать вход ноде»: "exitcookies:<типы через запятую>\n<Cookie-заголовок>".
+            if cmd.hasPrefix("exitcookies:") {
+                let body = cmd.dropFirst("exitcookies:".count)
+                let parts = body.split(separator: "\n", maxSplits: 1).map(String.init)
+                var out = "нет cookies"
+                if parts.count == 2, let c = parts[0].withCString({ t in parts[1].withCString { k in
+                    OpenFluxOfferExitCookies(UnsafeMutablePointer(mutating: t), UnsafeMutablePointer(mutating: k)) } }) {
+                    out = String(cString: c)
+                    OpenFluxFreeString(c)
+                }
+                completionHandler?(out.data(using: .utf8) ?? Data())
+                return
+            }
             if cmd.hasPrefix("cookies:") {
                 let raw = String(cmd.dropFirst("cookies:".count))
                 let n = raw.withCString { OpenFluxApplyCaptchaCookies(UnsafeMutablePointer(mutating: $0)) }
