@@ -8,7 +8,7 @@ options:
 settings:
   base:
     MARKETING_VERSION: "1.2.0"
-    CURRENT_PROJECT_VERSION: "123"
+    CURRENT_PROJECT_VERSION: "124"
     DEVELOPMENT_TEAM: "H6KHCZK2RG"
 
 targets:
@@ -31,11 +31,13 @@ targets:
     info:
       path: OpenFlux/Info.plist
       properties:
-        # No ITSAppUsesNonExemptEncryption: the core encrypts tunnel traffic itself
-        # (AES-GCM, scrypt KDF), so "false" would be wrong, and "true" makes the upload
-        # demand an ITSEncryptionExportComplianceCode from approved documentation.
-        # Without the key App Store Connect asks the export questions for each build;
-        # see appstore/README.ru.md, section 5.
+        # The core encrypts tunnel traffic itself, but only with standard algorithms
+        # (AES-GCM, HMAC-SHA256, scrypt), and the app is not sold in France: App Store
+        # Connect's export questions (build 123) end in "no documentation needed" and
+        # say to set this to NO. A proprietary algorithm or France would change that;
+        # see appstore/README.ru.md, section 5. ("true" without an
+        # ITSEncryptionExportComplianceCode is refused at upload.)
+        ITSAppUsesNonExemptEncryption: false
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSCameraUsageDescription: "Сканирование QR-кода конфигурации для добавления профиля."
