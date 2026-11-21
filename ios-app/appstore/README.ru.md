@@ -10,7 +10,7 @@
 | Что | Где |
 |---|---|
 | Команда `H6KHCZK2RG`, bundle id `com.pnonetwork.openflux` во всех таргетах: приложение, `.tunnel`, `.controls`, `.uitests`, keychain group, kind контрола Пункта управления | `project.yml`, entitlements, `Secrets.swift`, `Keychain.kt`, `VPNController.swift`, `IosConnectionService.kt`, `VPNControl.swift`, `OpenFluxApp.swift`, `DeviceTests.swift`, `ExportOptions.plist`, `build_ios_app.sh` |
-| Убран `ITSAppUsesNonExemptEncryption = false`: ядро само шифрует трафик (AES-GCM, ключ через scrypt), исключение «только системный TLS» к нему не подходит. Значение `true` без кода документации App Store Connect отвергает при загрузке («Invalid Export Compliance Code»), поэтому ключа в plist нет, и вопросы о шифровании задаются для каждой сборки | `project.yml`, `OpenFlux/Info.plist` |
+| `ITSAppUsesNonExemptEncryption = false` с обоснованием. Ядро само шифрует трафик, но только стандартными алгоритмами (AES-GCM, HMAC-SHA256, scrypt), а Франции нет в списке стран. На такие ответы App Store Connect (билд 123) отвечает «документация не нужна» и сам советует поставить NO. Значение `true` без кода документации отвергается при загрузке («Invalid Export Compliance Code») | `project.yml`, `OpenFlux/Info.plist` |
 | Privacy Manifest приложения: file timestamp `C617.1` и system boot time `35F9.1` (Go и Kotlin/Native: `stat`/`fstat`, `mach_absolute_time`), UserDefaults `CA92.1`; трекинга нет | `OpenFlux/PrivacyInfo.xcprivacy` |
 | Privacy Manifest туннеля: file timestamp и boot time (Go-ядро) | `OpenFluxTunnel/PrivacyInfo.xcprivacy` |
 | Убраны крипто-адреса для донатов из классического интерфейса (правило 3.1.1) | `OpenFlux/InfoView.swift` |
@@ -39,9 +39,9 @@
    может быть занято: запасные варианты в `metadata.md`.
 5. **Agreements, Tax, and Banking**: Free Apps Agreement подписан (для
    бесплатного приложения достаточно его).
-6. **Политика конфиденциальности**: разместить [PRIVACY.md](PRIVACY.md) по
-   публичному HTTPS-адресу (например `https://openflux.dev/privacy`) и вписать
-   в App Information → Privacy Policy URL.
+6. **Политика конфиденциальности**: [privacy-policy.html](privacy-policy.html)
+   разместить по адресу `https://fluxy.su/privacy-policy`. Этот адрес уже вписан в
+   App Store Connect.
 7. **App Privacy** (анкета «nutrition label») — ответы в разделе 4.
 8. **Export Compliance** — ответы в разделе 5.
 9. **Страны** (Pricing and Availability): решение ваше. Apple снимает VPN-приложения
@@ -124,7 +124,8 @@ History и политика должны говорить об этом чест
 
 После публикации: **ежегодный self-classification report** в BIS и NSA до 1 февраля
 (требование § 740.17(b)(1) для mass-market продуктов с несистемным шифрованием).
-Чтобы не отвечать на вопросы для каждой сборки, загрузите документацию в App
-Information → «Документация по шифрованию приложения». После одобрения добавьте в
-`project.yml` и `ITSAppUsesNonExemptEncryption: true`, и выданный
-`ITSEncryptionExportComplianceCode`.
+Для билда 123 ответы даны так: стандартные алгоритмы, Франции нет. App Store Connect
+ответил, что документация не нужна, поэтому начиная с билда 124 в plist стоит
+`ITSAppUsesNonExemptEncryption: false`, и вопросы больше не задаются. Если появится
+собственный (нестандартный) алгоритм или Франция — ответьте на вопросы заново и
+загрузите документацию.
