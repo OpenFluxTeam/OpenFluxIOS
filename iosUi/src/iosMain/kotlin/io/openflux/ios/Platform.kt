@@ -62,6 +62,8 @@ class IosPlatformServices : PlatformServices {
     // iOS app may go only through Apple: neither is offered here.
     override val selfUpdates = false
     override val purchasesInApp = false
+    // No OpenFlux account sign-in on iOS (App Store 5.1.1(v), 3.1.3(b)): bot connections come in as links.
+    override val accountSignInInApp = false
     override val supportUrl = "https://t.me/+4waLgXpI46IzOThi"
     // The packet tunnel is a client only: no exit node on an iPhone.
     override val exitNodeSupported = false
