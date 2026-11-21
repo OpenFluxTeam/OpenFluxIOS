@@ -20,6 +20,12 @@ mkdir -p "$APP_DIR/Lib"
 cp "$ROOT/output/ios/liboflux.h" "$APP_DIR/Lib/liboflux.h"
 
 echo "==> [2b/5] Building the shared Kotlin UI (iosUi/ + shared/ -> OpenFluxUI.framework)"
+# Gradle needs a JDK 17; macOS has none by default. Homebrew's openjdk@17 is not
+# linked into /Library/Java, so the system's java stub cannot find it.
+if [ -z "$JAVA_HOME" ] && ! /usr/libexec/java_home >/dev/null 2>&1; then
+  BREW_JDK=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+  [ -d "$BREW_JDK" ] && export JAVA_HOME="$BREW_JDK"
+fi
 ( cd "$ROOT" && ./gradlew --no-daemon -q :iosUi:linkReleaseFrameworkIosArm64 :iosUi:assembleIosArm64MainResources :shared:prepareComposeResourcesTaskForCommonMain )
 
 echo "==> [3/5] Generating Xcode project"
