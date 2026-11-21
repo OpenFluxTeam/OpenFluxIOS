@@ -10,7 +10,7 @@
 | Что | Где |
 |---|---|
 | Команда `H6KHCZK2RG`, bundle id `com.pnonetwork.openflux` во всех таргетах: приложение, `.tunnel`, `.controls`, `.uitests`, keychain group, kind контрола Пункта управления | `project.yml`, entitlements, `Secrets.swift`, `Keychain.kt`, `VPNController.swift`, `IosConnectionService.kt`, `VPNControl.swift`, `OpenFluxApp.swift`, `DeviceTests.swift`, `ExportOptions.plist`, `build_ios_app.sh` |
-| `ITSAppUsesNonExemptEncryption = true`: ядро само шифрует трафик (AES-GCM, ключ через scrypt), исключение «только системный TLS» к нему не подходит | `project.yml`, `OpenFlux/Info.plist` |
+| Убран `ITSAppUsesNonExemptEncryption = false`: ядро само шифрует трафик (AES-GCM, ключ через scrypt), исключение «только системный TLS» к нему не подходит. Значение `true` без кода документации App Store Connect отвергает при загрузке («Invalid Export Compliance Code»), поэтому ключа в plist нет, и вопросы о шифровании задаются для каждой сборки | `project.yml`, `OpenFlux/Info.plist` |
 | Privacy Manifest приложения: file timestamp `C617.1` и system boot time `35F9.1` (Go и Kotlin/Native: `stat`/`fstat`, `mach_absolute_time`), UserDefaults `CA92.1`; трекинга нет | `OpenFlux/PrivacyInfo.xcprivacy` |
 | Privacy Manifest туннеля: file timestamp и boot time (Go-ядро) | `OpenFluxTunnel/PrivacyInfo.xcprivacy` |
 | Убраны крипто-адреса для донатов из классического интерфейса (правило 3.1.1) | `OpenFlux/InfoView.swift` |
@@ -105,7 +105,7 @@ Do you or your third-party partners collect data from this app? — **Yes**.
 Diagnostics. Если exit-узлы сервиса пишут логи соединений, ответ про Browsing
 History и политика должны говорить об этом честно.
 
-## 5. Export Compliance (на каждую сборку, если ключ не зафиксирован)
+## 5. Export Compliance (TestFlight → сборка → «Управлять соответствием»)
 
 Не юридическая консультация. Правильная классификация — ответственность компании.
 
@@ -124,5 +124,7 @@ History и политика должны говорить об этом чест
 
 После публикации: **ежегодный self-classification report** в BIS и NSA до 1 февраля
 (требование § 740.17(b)(1) для mass-market продуктов с несистемным шифрованием).
-Чтобы не отвечать на вопросы для каждой сборки, после одобрения можно добавить в
-`project.yml` ключ `ITSEncryptionExportComplianceCode`.
+Чтобы не отвечать на вопросы для каждой сборки, загрузите документацию в App
+Information → «Документация по шифрованию приложения». После одобрения добавьте в
+`project.yml` и `ITSAppUsesNonExemptEncryption: true`, и выданный
+`ITSEncryptionExportComplianceCode`.

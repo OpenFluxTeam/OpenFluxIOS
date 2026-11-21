@@ -19,9 +19,10 @@
 4. **Подпись и архив.** Automatic signing, team `H6KHCZK2RG` (до билда 122 — `8GQH8GQ252`), Cloud Managed
    Apple Distribution. Экспортирован App Store `.ipa`.
 5. **Загрузка в App Store Connect** через ASC API-ключ (см. ниже).
-   Флаг `ITSAppUsesNonExemptEncryption = true`: ядро само шифрует трафик
-   (AES-GCM), это не «только системный TLS». Ответы на вопросы Export Compliance —
-   в [appstore/README.ru.md](appstore/README.ru.md).
+   Ключа `ITSAppUsesNonExemptEncryption` в plist нет: ядро само шифрует трафик
+   (AES-GCM), поэтому `false` был бы неправдой, а `true` без кода документации
+   App Store Connect отвергает при загрузке. Вопросы о шифровании задаются для
+   каждой сборки, ответы — в [appstore/README.ru.md](appstore/README.ru.md).
 
 ## Параметры
 
