@@ -4,12 +4,12 @@
 #
 # Requirements: Xcode, xcodegen (brew install xcodegen), Go 1.26+.
 # Signing: automatic; your Apple ID must be logged into Xcode
-# (Xcode > Settings > Accounts) and belong to team 8GQH8GQ252.
+# (Xcode > Settings > Accounts) and belong to team H6KHCZK2RG.
 set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$ROOT/ios-app"
-TEAM_ID="8GQH8GQ252"
+TEAM_ID="H6KHCZK2RG"
 
 echo "==> [1/5] Building Go static library (arm64, iOS)"
 "$ROOT/build_ios.sh"
@@ -64,7 +64,7 @@ echo ""
 echo "IPA ready: $APP_DIR/build/export/OpenFlux.ipa"
 echo ""
 echo "To upload to TestFlight, first create the app record in App Store Connect"
-echo "(My Apps > + > New App, bundle id com.p1neapplexpress-saharev.openflux), then run:"
+echo "(My Apps > + > New App, bundle id com.pnonetwork.openflux), then run:"
 echo ""
 echo "  # Option A - app-specific password (appleid.apple.com > App-Specific Passwords):"
 echo "  xcrun altool --upload-app -f build/export/OpenFlux.ipa -t ios \\"

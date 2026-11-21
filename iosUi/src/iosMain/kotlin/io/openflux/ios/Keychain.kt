@@ -45,7 +45,7 @@ import platform.Security.kSecValueData
 @OptIn(ExperimentalForeignApi::class)
 object SharedKeychain {
     private const val SERVICE = "openflux.encryption"
-    private const val GROUP = "8GQH8GQ252.com.p1neapplexpress-saharev.openflux"
+    private const val GROUP = "H6KHCZK2RG.com.pnonetwork.openflux"
 
     fun setSecret(profileUuid: String, secret: String): Boolean = set(SERVICE, profileUuid, secret)
 

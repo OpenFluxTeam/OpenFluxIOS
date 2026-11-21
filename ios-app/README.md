@@ -7,7 +7,7 @@ SOCKS5 tunnel over the Yandex.Docs transport on `127.0.0.1:1080`.
 - `project.yml` — XcodeGen project definition (run `xcodegen generate` to produce `OpenFlux.xcodeproj`).
 - `OpenFlux/` — Swift sources, bridging header, Info.plist, assets.
 - `Lib/liboflux.a`, `Lib/liboflux.h` — Go static library + generated header (copied from `../output/ios`).
-- `ExportOptions.plist` — App Store export options (team 8GQH8GQ252, automatic signing).
+- `ExportOptions.plist` — App Store export options (team H6KHCZK2RG, automatic signing).
 
 ## Go bridge API (liboflux.h)
 The library is the OpenFlux core's `mobile/ios` package, built from the
@@ -30,7 +30,7 @@ Produces `ios-app/build/export/OpenFlux.ipa`, distribution-signed for the App St
 
 ## Upload to TestFlight
 1. Create the app record once: App Store Connect > My Apps > **+** > New App,
-   bundle id `com.p1neapplexpress-saharev.openflux`, platform iOS.
+   bundle id `com.pnonetwork.openflux`, platform iOS.
 2. Upload the IPA (either option):
    ```bash
    # A) app-specific password (appleid.apple.com)

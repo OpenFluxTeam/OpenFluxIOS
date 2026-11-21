@@ -17,7 +17,7 @@ enum Secrets {
     /// Team-prefixed access group shared by app and extension. The team id is
     /// fixed for this app, so it is spelled out rather than read back from the
     /// entitlement at runtime.
-    static let accessGroup = "8GQH8GQ252.com.p1neapplexpress-saharev.openflux"
+    static let accessGroup = "H6KHCZK2RG.com.pnonetwork.openflux"
 
     private static let service = "openflux.encryption"
     private static let captchaService = "openflux.captcha"

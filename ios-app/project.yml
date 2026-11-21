@@ -1,6 +1,6 @@
 name: OpenFlux
 options:
-  bundleIdPrefix: com.p1neapplexpress-saharev
+  bundleIdPrefix: com.pnonetwork
   deploymentTarget:
     iOS: "15.0"
   createIntermediateGroups: true
@@ -9,7 +9,7 @@ settings:
   base:
     MARKETING_VERSION: "1.2.0"
     CURRENT_PROJECT_VERSION: "122"
-    DEVELOPMENT_TEAM: "8GQH8GQ252"
+    DEVELOPMENT_TEAM: "H6KHCZK2RG"
 
 targets:
   OpenFlux:
@@ -31,7 +31,9 @@ targets:
     info:
       path: OpenFlux/Info.plist
       properties:
-        ITSAppUsesNonExemptEncryption: false
+        # The core encrypts tunnel traffic itself (AES-GCM, scrypt KDF): not exempt.
+        # App Store Connect asks the export-compliance questions for each build.
+        ITSAppUsesNonExemptEncryption: true
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSCameraUsageDescription: "Сканирование QR-кода конфигурации для добавления профиля."
@@ -63,10 +65,10 @@ targets:
         # Shared with the tunnel extension so the encryption secret lives in the
         # Keychain instead of the VPN provider configuration.
         keychain-access-groups:
-          - $(AppIdentifierPrefix)com.p1neapplexpress-saharev.openflux
+          - $(AppIdentifierPrefix)com.pnonetwork.openflux
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.p1neapplexpress-saharev.openflux
+        PRODUCT_BUNDLE_IDENTIFIER: com.pnonetwork.openflux
         PRODUCT_NAME: OpenFlux
         INFOPLIST_KEY_CFBundleDisplayName: OpenFlux
         SWIFT_OBJC_BRIDGING_HEADER: OpenFlux/OpenFlux-Bridging-Header.h
@@ -118,10 +120,10 @@ targets:
         com.apple.developer.networking.networkextension:
           - packet-tunnel-provider
         keychain-access-groups:
-          - $(AppIdentifierPrefix)com.p1neapplexpress-saharev.openflux
+          - $(AppIdentifierPrefix)com.pnonetwork.openflux
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.p1neapplexpress-saharev.openflux.tunnel
+        PRODUCT_BUNDLE_IDENTIFIER: com.pnonetwork.openflux.tunnel
         PRODUCT_NAME: OpenFluxTunnel
         SWIFT_OBJC_BRIDGING_HEADER: OpenFluxTunnel/Tunnel-Bridging-Header.h
         SWIFT_VERSION: "5.0"
@@ -160,7 +162,7 @@ targets:
           - packet-tunnel-provider
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.p1neapplexpress-saharev.openflux.controls
+        PRODUCT_BUNDLE_IDENTIFIER: com.pnonetwork.openflux.controls
         PRODUCT_NAME: OpenFluxControls
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
@@ -175,7 +177,7 @@ targets:
       - target: OpenFlux
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.p1neapplexpress-saharev.openflux.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.pnonetwork.openflux.uitests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_STYLE: Automatic
         TEST_TARGET_NAME: OpenFlux

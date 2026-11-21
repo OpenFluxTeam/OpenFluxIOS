@@ -15,7 +15,7 @@ struct OpenFluxControls: WidgetBundle {
 }
 
 struct VPNControl: ControlWidget {
-    static let kind = "com.p1neapplexpress-saharev.openflux.vpn"
+    static let kind = "com.pnonetwork.openflux.vpn"
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind, provider: VPNState()) { on in

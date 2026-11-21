@@ -278,7 +278,7 @@ final class TunnelController: ObservableObject {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 20
         let session = URLSession(configuration: config)
-        let url = URL(string: "http://ifconfig.me/ip")!
+        let url = URL(string: "https://ifconfig.me/ip")!
         let task = session.dataTask(with: url) { [weak self] data, _, err in
             Task { @MainActor in
                 if let err = err {
@@ -308,7 +308,7 @@ final class TunnelController: ObservableObject {
         ]
         config.timeoutIntervalForRequest = 20
         let session = URLSession(configuration: config)
-        let url = URL(string: "http://ifconfig.me/ip")!
+        let url = URL(string: "https://ifconfig.me/ip")!
         let task = session.dataTask(with: url) { [weak self] data, _, err in
             Task { @MainActor in
                 if let err = err {
