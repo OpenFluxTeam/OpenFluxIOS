@@ -155,7 +155,7 @@ class IosConnectionService(
                     }
                 }
                 val proto = NETunnelProviderProtocol()
-                proto.providerBundleIdentifier = "com.p1neapplexpress-saharev.openflux.tunnel"
+                proto.providerBundleIdentifier = "com.pnonetwork.openflux.tunnel"
                 proto.serverAddress = "OpenFlux"
                 proto.providerConfiguration = conf
                 m.protocolConfiguration = proto

@@ -13,7 +13,7 @@ struct OpenFluxApp: App {
         // Control Center's OpenFlux switch (OpenFluxControls) follows the VPN whoever turns it.
         NotificationCenter.default.addObserver(forName: .NEVPNStatusDidChange, object: nil, queue: .main) { _ in
             if #available(iOS 18.0, *) {
-                ControlCenter.shared.reloadControls(ofKind: "com.p1neapplexpress-saharev.openflux.vpn")
+                ControlCenter.shared.reloadControls(ofKind: "com.pnonetwork.openflux.vpn")
             }
         }
     }

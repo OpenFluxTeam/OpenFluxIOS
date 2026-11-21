@@ -16,19 +16,21 @@
    Start/Stop, индикатор состояния, живой лог и кнопка Test (проверяет тоннель
    запросом через локальный SOCKS5 `127.0.0.1:1080`). Линкует `liboflux.a`.
 3. **Иконка** 1024×1024 в asset-каталоге (обязательна для загрузки).
-4. **Подпись и архив.** Automatic signing, team `8GQH8GQ252`, Cloud Managed
+4. **Подпись и архив.** Automatic signing, team `H6KHCZK2RG` (до билда 122 — `8GQH8GQ252`), Cloud Managed
    Apple Distribution. Экспортирован App Store `.ipa`.
 5. **Загрузка в App Store Connect** через ASC API-ключ (см. ниже).
-   Флаг `ITSAppUsesNonExemptEncryption = false` — экспортная документация по
-   шифрованию не требуется (используется только стандартный HTTPS/TLS).
+   Ключа `ITSAppUsesNonExemptEncryption` в plist нет: ядро само шифрует трафик
+   (AES-GCM), поэтому `false` был бы неправдой, а `true` без кода документации
+   App Store Connect отвергает при загрузке. Вопросы о шифровании задаются для
+   каждой сборки, ответы — в [appstore/README.ru.md](appstore/README.ru.md).
 
 ## Параметры
 
 | Параметр | Значение |
 |---|---|
-| Bundle ID | `com.p1neapplexpress-saharev.openflux` |
-| Team ID | `8GQH8GQ252` (Alexandr Revin, Individual) |
-| Marketing version | `1.0.0` |
+| Bundle ID | `com.pnonetwork.openflux` (`.tunnel`, `.controls`, `.uitests`) |
+| Team ID | `H6KHCZK2RG` (организация; прежний `8GQH8GQ252` — Individual) |
+| Marketing version | `1.2.0` |
 | Deployment target | iOS 15.0 |
 | Architecture | arm64 (device) |
 | ASC API Key ID | `<KEY_ID>` |
@@ -70,18 +72,13 @@ Apple не принимает повторно тот же номер сборк
 
 ## Ограничения и риски распространения
 
-- Приложение — инструмент обхода блокировок. Для **публичного** распространения
-  в App Store действуют Guideline **5.4 (VPN)**: требуется `NetworkExtension`
-  и аккаунт-**организация** (не Individual); текущий вид почти наверняка получит
-  reject на ревью.
+- Подготовка к публичному релизу в App Store (организация, Privacy Manifest,
+  шифрование, тексты стора, риски ревью) — в [appstore/README.ru.md](appstore/README.ru.md).
 - **TestFlight Internal Testing** (разработчик + внутренние пользователи) Beta App
   Review не проходит — работает уже сейчас. **External Testing** и релиз — проходят.
 - Возможно региональное снятие (Apple удаляла обходные приложения из ряда сторов
   по требованию регуляторов).
 - Тоннелирование через Яндекс.Документы / MAX вероятно нарушает их ToS.
-- Приложение поднимает **локальный** SOCKS5; системное туннелирование всего
-  устройства потребует отдельного таргета `NEPacketTunnelProvider` — в этот билд
-  не входит.
 
 ## Безопасность
 

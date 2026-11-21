@@ -9,7 +9,7 @@ import XCTest
 ///   OFX_MB        megabytes to download for the speed (default 5)
 ///   OFX_KB        kilobytes instead, for the slow document carriers
 final class DeviceTests: XCTestCase {
-    let app = XCUIApplication(bundleIdentifier: "com.p1neapplexpress-saharev.openflux")
+    let app = XCUIApplication(bundleIdentifier: "com.pnonetwork.openflux")
     var env: [String: String] { ProcessInfo.processInfo.environment }
 
     override func setUp() {
