@@ -4,9 +4,6 @@ import WidgetKit
 
 @main
 struct OpenFluxApp: App {
-    /// Settings → OpenFlux → «Классический интерфейс» (Settings.bundle): the Swift UI.
-    @AppStorage("classic_ui") private var classic = false
-
     init() {
         // The shared Kotlin UI's camera, photos and QR drawing (IosHooks).
         KotlinHooks.install()
@@ -19,12 +16,10 @@ struct OpenFluxApp: App {
     }
 
     var body: some Scene {
+        // One interface: the shared Kotlin UI. The old Swift UI (ContentView) is no longer
+        // switchable from the iOS Settings app; App Review read that as a hidden mode (5.6).
         WindowGroup {
-            if classic {
-                ContentView()
-            } else {
-                KotlinRootView()
-            }
+            KotlinRootView()
         }
     }
 }
