@@ -128,6 +128,12 @@ class IosConnectionService(
             _state.value = ConnectionState.Failed(profile, "На iPhone — только подключение к узлу")
             return
         }
+        // No JS carriers on iOS (IosCoreSpecs drops them): a profile with nothing else does not start at all.
+        val carriers = if (profile.session && !profile.stream) profile.sessionSpecs().map { it.type } else listOf(profile.transport)
+        if (carriers.all { it == TransportType.SCRIPT }) {
+            _state.value = ConnectionState.Failed(profile, "JS-транспорты на iPhone не поддерживаются: в профиле нет других транспортов")
+            return
+        }
         active = profile
         since = now()
         _state.value = ConnectionState.Connecting(profile, ConnectionMode.Client, since)

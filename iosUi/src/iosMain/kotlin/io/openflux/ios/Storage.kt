@@ -45,12 +45,18 @@ class DefaultsProfiles(private val defaults: NSUserDefaults = NSUserDefaults.sta
 class DefaultsSettings(private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults) : SettingsRepository {
     private val key = "kmp.settings"
     private val _settings = MutableStateFlow(
-        defaults.stringForKey(key)?.let { runCatching { storeJson.decodeFromString(AppSettings.serializer(), it) }.getOrNull() } ?: AppSettings(),
+        ios(defaults.stringForKey(key)?.let { runCatching { storeJson.decodeFromString(AppSettings.serializer(), it) }.getOrNull() } ?: AppSettings()),
     )
     override val settings: StateFlow<AppSettings> = _settings
 
+    /**
+     * What iOS never turns on, whatever an older build saved: JS transports (experimental) and developer mode
+     * (Platform.scriptsInApp / developerModeInApp, App Store 2.5.2 and 5.6).
+     */
+    private fun ios(s: AppSettings) = s.copy(experimental = false, developerMode = false)
+
     override fun update(transform: (AppSettings) -> AppSettings) {
-        val next = transform(_settings.value)
+        val next = ios(transform(_settings.value))
         _settings.value = next
         defaults.setObject(storeJson.encodeToString(AppSettings.serializer(), next), key)
     }

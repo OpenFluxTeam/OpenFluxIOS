@@ -25,8 +25,7 @@ struct KotlinUIScreen: View {
     }
 }
 
-/// The app's main screen: the shared Kotlin UI, edge to edge. The Swift UI
-/// stays behind Settings → OpenFlux → «Классический интерфейс».
+/// The app's main screen, and its only one: the shared Kotlin UI, edge to edge.
 struct KotlinRootView: View {
     var body: some View {
         ComposeHost().ignoresSafeArea()

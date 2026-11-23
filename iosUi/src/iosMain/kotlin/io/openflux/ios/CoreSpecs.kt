@@ -9,13 +9,15 @@ import kotlinx.serialization.json.put
 /**
  * A Session profile in the form OpenFluxStartSessionPacketTunnel takes: the
  * Android app's CoreSpecs.session for a client (io.openflux.android.core), so
- * a profile reaches the same exit the same way on both. Script carriers are not
- * offered on iOS yet.
+ * a profile reaches the same exit the same way on both. Script (JS) carriers never
+ * reach the core on iOS: an App Store app may not run downloaded code (2.5.2), so a
+ * profile's other carriers carry it, or it does not connect.
  */
 internal object IosCoreSpecs {
     fun session(profile: Profile): String {
         val transports = buildJsonArray {
             for (spec in profile.sessionSpecs()) {
+                if (spec.type == TransportType.SCRIPT) continue
                 add(buildJsonObject {
                     put("name", spec.name)
                     if (spec.network.cli.isNotEmpty()) put("network", spec.network.cli)
