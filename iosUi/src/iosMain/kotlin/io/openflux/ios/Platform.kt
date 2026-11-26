@@ -64,10 +64,14 @@ class IosPlatformServices : PlatformServices {
     override val purchasesInApp = false
     // No OpenFlux account sign-in on iOS (App Store 5.1.1(v), 3.1.3(b)): bot connections come in as links.
     override val accountSignInInApp = false
+    // The iOS app is a free client for one's own servers and openflux:// configs: no account screen, subscription
+    // keys, bot links or words about a paid service (App Store 3.1.1, 3.1.3).
+    override val serviceInApp = false
     // No JS transports and no developer-mode gesture on iOS (App Store 2.5.2, 5.6): only the core's own transports.
     override val scriptsInApp = false
     override val developerModeInApp = false
-    override val supportUrl = "https://t.me/+4waLgXpI46IzOThi"
+    // Support is the public repository (About → Исходный код), not a chat.
+    override val supportUrl: String? = null
     // The packet tunnel is a client only: no exit node on an iPhone.
     override val exitNodeSupported = false
     override fun restartElevated() = false
