@@ -13,8 +13,7 @@
 | Primary category | Utilities |
 | Secondary category | Productivity |
 | Price | Free |
-| Support URL | `https://t.me/openflux_bot` (лучше страница на `openflux.dev/support`) |
-| Marketing URL | `https://openflux.dev` |
+| Support URL | `https://github.com/OpenFluxTeam/OpenFluxIOS` (публичный репозиторий; не бот и не чат) |
 | Privacy Policy URL | `https://openflux.dev/privacy` (опубликовать [PRIVACY.md](PRIVACY.md)) |
 | Copyright | `2026 <юридическое название организации>` |
 | Age rating | 17+ (Unrestricted Web Access: встроенный браузер) |

@@ -80,6 +80,16 @@
   ссылку `openflux://`, которая подключается без входа в чужие аккаунты, и держите
   этот узел включённым на время ревью.
 
+### С билда 127: в iOS нет ничего о сервисе OpenFlux
+
+App Review (2.1(b)) спросил про платные подписки и ключи. iOS-версия — бесплатный
+open-source клиент для своих серверов и ссылок `openflux://`
+(`serviceInApp = false`, [OpenFluxClientShared#7](https://github.com/OpenFluxTeam/OpenFluxClientShared/pull/7)):
+нет раздела аккаунта, ключей подписки, ссылок бота и слов «подписка», «бот»,
+«сервис». К `api.openflux.dev` iOS-приложение не обращается (API бота и подписки —
+заглушки). Support URL в карточке — GitHub-репозиторий, а не бот. Анкета App Privacy
+для iOS теперь должна быть «данные не собираются».
+
 ## 4. Анкета App Privacy (App Store Connect → App Privacy)
 
 Предполагается, что приложение отправляет данные только на `api.openflux.dev`
