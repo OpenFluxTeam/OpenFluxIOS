@@ -54,7 +54,7 @@ class IosPlatformServices : PlatformServices {
         (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String).orEmpty()
     override val coreVersion: String =
         (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleVersion") as? String)?.let { "в сборке $it" }.orEmpty()
-    override val clientRepo: String = "saharev1/OpenFlux"
+    override val clientRepo: String = "OpenFluxTeam/OpenFluxIOS"
     override val systemProxySupported = false
     override val fullTunnelSupported = true
     override val elevated = false

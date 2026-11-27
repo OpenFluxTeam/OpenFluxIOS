@@ -5,6 +5,9 @@ github_output/
 *.dll
 *.so
 *.dylib
+# Built binaries of the command-line tunnel
+/openflux
+/openflux-*
 universal-bypass-tool
 universal-bypass-tool-*
 app

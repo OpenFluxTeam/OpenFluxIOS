@@ -2,26 +2,24 @@
 
 Чек-лист публикации. Что уже сделано в коде, что остаётся сделать в аккаунте
 разработчика и App Store Connect и где риски ревью. Тексты для стора лежат
-рядом: [metadata.md](metadata.md) (описание и заметки для ревьюера) и
-[PRIVACY.md](PRIVACY.md) (политика конфиденциальности).
+рядом: [metadata.md](metadata.md) (описание и заметки для ревьюера). Политика
+конфиденциальности — [PRIVACY.md](../../PRIVACY.md) в корне репозитория.
 
 ## 1. Сделано в коде (ветка `appstore-prep`)
 
 | Что | Где |
 |---|---|
-| Команда `H6KHCZK2RG`, bundle id `com.pnonetwork.openflux` во всех таргетах: приложение, `.tunnel`, `.controls`, `.uitests`, keychain group, kind контрола Пункта управления | `project.yml`, entitlements, `Secrets.swift`, `Keychain.kt`, `VPNController.swift`, `IosConnectionService.kt`, `VPNControl.swift`, `OpenFluxApp.swift`, `DeviceTests.swift`, `ExportOptions.plist`, `build_ios_app.sh` |
+| Команда `H6KHCZK2RG`, bundle id `com.pnonetwork.openflux` во всех таргетах: приложение, `.tunnel`, `.controls`, `.uitests`, keychain group, kind контрола Пункта управления | `project.yml`, entitlements, `Secrets.swift`, `Keychain.kt`, `IosConnectionService.kt`, `VPNControl.swift`, `OpenFluxApp.swift`, `DeviceTests.swift`, `ExportOptions.plist`, `build_ios_app.sh` |
 | `ITSAppUsesNonExemptEncryption = false` с обоснованием. Ядро само шифрует трафик, но только стандартными алгоритмами (AES-GCM, HMAC-SHA256, scrypt), а Франции нет в списке стран. На такие ответы App Store Connect (билд 123) отвечает «документация не нужна» и сам советует поставить NO. Значение `true` без кода документации отвергается при загрузке («Invalid Export Compliance Code») | `project.yml`, `OpenFlux/Info.plist` |
 | Privacy Manifest приложения: file timestamp `C617.1` и system boot time `35F9.1` (Go и Kotlin/Native: `stat`/`fstat`, `mach_absolute_time`), UserDefaults `CA92.1`; трекинга нет | `OpenFlux/PrivacyInfo.xcprivacy` |
 | Privacy Manifest туннеля: file timestamp и boot time (Go-ядро) | `OpenFluxTunnel/PrivacyInfo.xcprivacy` |
-| Убраны крипто-адреса для донатов из классического интерфейса (правило 3.1.1) | `OpenFlux/InfoView.swift` |
+| Старый («классический») интерфейс на Swift удалён целиком, вместе с экраном «О проекте» | `OpenFlux/` |
 | Проверка выходного IP идёт по HTTPS | `TunnelController.swift` |
 
 Оставлено сознательно:
 - `NSAllowsArbitraryLoads = true`. Приложение открывает HTTP-адреса, которые
-  вводит сам пользователь: страницы скрипта установки узла на loopback, адреса
-  профилей и подписок на его серверах. Причина записана в заметках для ревьюера.
-- Покупки на iOS уже выключены: `purchasesInApp = false` в `iosUi/.../Platform.kt`.
-  Тарифов, кнопки «Оплатить» и ссылок на оплату в iOS-сборке нет.
+  вводит сам пользователь: страницы скрипта установки узла на loopback и адреса
+  его серверов. Причина записана в заметках для ревьюера.
 
 ## 2. Аккаунт разработчика и App Store Connect
 
@@ -39,9 +37,11 @@
    может быть занято: запасные варианты в `metadata.md`.
 5. **Agreements, Tax, and Banking**: Free Apps Agreement подписан (для
    бесплатного приложения достаточно его).
-6. **Политика конфиденциальности**: [privacy-policy.html](privacy-policy.html)
-   разместить по адресу `https://fluxy.su/privacy-policy`. Этот адрес уже вписан в
-   App Store Connect.
+6. **Политика конфиденциальности**: [PRIVACY.md](../../PRIVACY.md) в корне этого
+   репозитория. В App Store Connect вписан адрес
+   `https://github.com/OpenFluxTeam/OpenFluxIOS/blob/main/PRIVACY.md`.
+   Политика лежит рядом с кодом, а не на сайте сервиса: карточка iOS-приложения
+   не должна вести на страницы, где что-то продаётся.
 7. **App Privacy** (анкета «nutrition label») — ответы в разделе 4.
 8. **Export Compliance** — ответы в разделе 5.
 9. **Страны** (Pricing and Availability): решение ваше. Apple снимает VPN-приложения
@@ -53,7 +53,7 @@
     (`TARGETED_DEVICE_FAMILY = 1`).
 11. **Возрастной рейтинг**: на все вопросы «None», а на «Unrestricted Web Access»
     ответ «Yes», потому что во встроенном браузере (вход в Яндекс и Mail.ru, капча)
-    можно открыть любой сайт. Итог: 17+.
+    можно открыть любой сайт. В App Store Connect итог — 16+.
 12. **Сборка и загрузка**: поднять `CURRENT_PROJECT_VERSION` в `project.yml`,
     затем `./build_ios_app.sh` (для Kotlin UI нужен JDK 17: `JAVA_HOME`),
     загрузка в TestFlight, потом Submit for Review.
@@ -61,12 +61,8 @@
 ## 3. Что ещё может вызвать отказ (код команды, `shared/`, бэкенд)
 
 - ~~**3.1.3(b), подписки, купленные вне приложения**~~ и ~~**5.1.1(v), удаление
-  аккаунта**~~. Решено с билда 125
-  ([OpenFluxClientShared#5](https://github.com/OpenFluxTeam/OpenFluxClientShared/pull/5)):
-  на iOS нет входа в аккаунт OpenFlux (`accountSignInInApp = false`). Аккаунт из
-  приложения не создаётся, значит, и удалять его в приложении не нужно. Подключения из
-  бота добавляются ссылкой `link.openflux.dev/…` или QR-кодом, как у обычного
-  VPN-клиента с конфигами.
+  аккаунта**~~. На iOS нет ни аккаунта, ни подписок, ни ссылок сервиса: см. ниже
+  «С билда 127» и «С билда 128».
 - ~~**5.1.1 / 5.1.2, вход в Яндекс и Mail.ru и «Передать вход ноде».**~~ Сделано
   ([OpenFluxClientShared#3](https://github.com/OpenFluxTeam/OpenFluxClientShared/pull/3)):
   перед первой передачей входа ноде, отдельно для каждого сервиса, показывается
@@ -90,25 +86,41 @@ open-source клиент для своих серверов и ссылок `ope
 заглушки). Support URL в карточке — GitHub-репозиторий, а не бот. Анкета App Privacy
 для iOS теперь должна быть «данные не собираются».
 
+### С билда 128: кода сервиса нет в бинарнике
+
+Билд 127 только скрывал экраны сервиса флагами `PlatformServices`. Сам код и его
+строки («Подписка», «Оплатить», `openflux_bot`, «Режим разработчика») оставались в
+приложении, а автоматическая проверка App Store читает и строки. С билда 128
+([OpenFluxClientShared#8](https://github.com/OpenFluxTeam/OpenFluxClientShared/pull/8)):
+
+- Экраны аккаунта и оплаты, ключи подписки и ссылки бота, каталог JS-транспортов,
+  обновления приложения и режим разработчика доступны остальному коду только через
+  `buildExtras` и `serviceExtras` (`expect val`). На iOS оба равны `null`, поэтому
+  Kotlin/Native не включает этот код в бинарник. Desktop и Android не меняются.
+- Старый интерфейс на Swift (`ContentView`, `InfoView`, `VPNController` и другие)
+  удалён: он не открывался с билда 126, но компилировался.
+- «О программе» ведёт на `OpenFluxTeam/OpenFluxIOS`.
+
+Проверка перед загрузкой: в бинарнике `OpenFlux.app/OpenFlux` не должно быть строк
+«Подписка», «Оплатить», «Купить», «тариф», `openflux_bot`, `api.openflux.dev`,
+`link.openflux.dev`, «Режим разработчика», «Экспериментальн» (UTF-8 и UTF-16LE).
+
+Что остаётся и почему: слова про JS-транспорт в редакторе профиля (чужой профиль
+может его содержать, приложение честно пишет, что на этом устройстве он не
+поддерживается) и строки Go-ядра (`core`), общего для всех платформ.
+
 ## 4. Анкета App Privacy (App Store Connect → App Privacy)
 
-Предполагается, что приложение отправляет данные только на `api.openflux.dev`
-(аккаунт и подписка), на узлы, которые выбрал пользователь, и в сервисы, которые
-служат транспортом. Аналитики и сборщиков сбоев в коде нет. Если это изменится,
-ответы нужно пересмотреть.
+Ответ: **Data Not Collected** («Сбор данных не ведётся»), опубликован 27.11.2026.
 
-Do you or your third-party partners collect data from this app? — **Yes**.
+Основание: в iOS-приложении нет аккаунта, аналитики и сборщиков сбоев, к серверам
+разработчика оно не обращается. Профили, ключи и журнал хранятся на устройстве.
+Сессия Яндекса или Mail.ru уходит только на сервер, который подключил сам
+пользователь, и только после его согласия; разработчик её не получает. Адрес
+выхода приложение узнаёт у `api.ipify.org` через туннель.
 
-| Тип данных | Собираем | Связаны с пользователем | Трекинг | Цель |
-|---|---|---|---|---|
-| Contact Info → Email Address | да (вход по почте) | да | нет | App Functionality |
-| Identifiers → User ID | да (номер аккаунта или Telegram id) | да | нет | App Functionality |
-| Other Data Types → Other (сессии Яндекса и Mail.ru, переданные узлу сервиса) | только если узел — сервера OpenFlux | да | нет | App Functionality |
-
-Не собираем: Location, Contacts, Browsing History (трафик через туннель не
-логируется), Health, Financial Info (оплата идёт вне приложения), Usage Data,
-Diagnostics. Если exit-узлы сервиса пишут логи соединений, ответ про Browsing
-History и политика должны говорить об этом честно.
+Если в iOS появится аккаунт, аналитика или любой запрос к серверам разработчика,
+анкету и политику нужно пересмотреть до загрузки такого билда.
 
 ## 5. Export Compliance (TestFlight → сборка → «Управлять соответствием»)
 

@@ -1,6 +1,32 @@
-# OpenFlux
+# OpenFlux для iOS
 
 [English](README.md) | **Русский**
+
+OpenFlux для iOS — бесплатный VPN-клиент с открытым исходным кодом. Он шифрует
+трафик устройства и отправляет его на сервер, который вы держите сами, или на
+сервер, владелец которого дал вам профиль (ссылку `openflux://` или QR-код).
+В приложении нет аккаунта, покупок, рекламы и аналитики, к серверам
+разработчика оно не обращается.
+
+- **Поддержка:** создайте [issue](https://github.com/OpenFluxTeam/OpenFluxIOS/issues)
+  или напишите на pasckalottiger@yepez-network.cyou.
+- **Политика конфиденциальности:** [PRIVACY.md](PRIVACY.md).
+- **Лицензия:** GPL-3.0-or-later, см. [LICENSE](LICENSE).
+
+Где какой код:
+
+| Путь | Что |
+|---|---|
+| `ios-app/` | Проект Xcode: приложение, расширение пакетного туннеля, переключатель в Пункте управления |
+| `iosUi/` | iOS-часть интерфейса (Kotlin/Native) |
+| `shared/` | Интерфейс, общий с другими клиентами (подмодуль, Compose Multiplatform) |
+| `core/` | Сам туннель (подмодуль, Go) |
+
+Сборка приложения: `./build_ios_app.sh` (Xcode, JDK 17, Go).
+
+Дальше в этом файле описан консольный туннель, из которого вырос проект.
+
+# Ядро OpenFlux
 
 Исследовательский инструмент сетевого стека. TCP-туннель с подключаемыми транспортами.
 
@@ -10,7 +36,7 @@ Client (SOCKS5) --> Transport --> Exit Node --> Internet
 ```
 
 ## Требования
-1. Golang v. 1.26.3+ — требуется для сборки бинарника десктопного клиента / выходной ноды (universal-bypass-tool);
+1. Golang v. 1.26.3+ — требуется для сборки бинарника десктопного клиента / выходной ноды (openflux);
 2. Android Native Development Kit (NDK) v.27.0.12077973+ — требуется для сборки бинарника для Android-клиента;
 3. XCode v. 26.6+ — требуется для сборки бинарника для iOS-клиента;
 4. VPS / VDS выходная нода на Linux.
@@ -52,7 +78,7 @@ OpenFlux/
 
 ```bash
 go mod tidy
-go build -o universal-bypass-tool .
+go build -o openflux .
 ```
 
 ## Сборка для Android (клиентский бинарник)
@@ -89,7 +115,7 @@ TCP-соединения выходной ноды живут в userspace-ст�
 ```bash
 # повесьте на машину второй/алиас IP под туннель, напр. 203.0.113.10
 sudo iptables -A OUTPUT -p tcp --tcp-flags RST RST -s 203.0.113.10 -j DROP
-sudo ./universal-bypass-tool --exit-node --local-ip 203.0.113.10 \
+sudo ./openflux --exit-node --local-ip 203.0.113.10 \
     --url "YOUR_YANDEX_DOC_URL" --debug
 ```
 Ещё чище — запускать ноду в отдельном network namespace / контейнере, тогда
@@ -101,14 +127,14 @@ sudo ./universal-bypass-tool --exit-node --local-ip 203.0.113.10 \
 последствий):
 ```bash
 sudo iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP
-sudo ./universal-bypass-tool --exit-node --url "YOUR_YANDEX_DOC_URL" --debug
+sudo ./openflux --exit-node --url "YOUR_YANDEX_DOC_URL" --debug
 ```
 
 ### 1. Настройка десктопного клиента:
 
 Команды для настройки десктопного клиента:
 ```bash
-./universal-bypass-tool --client --url "YOUR_YANDEX_DOC_URL" --socks5 :1080 --debug
+./openflux --client --url "YOUR_YANDEX_DOC_URL" --socks5 :1080 --debug
 ```
 
 Затем настройте SOCKS5-прокси в браузере на localhost:1080.

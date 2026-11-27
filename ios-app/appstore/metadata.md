@@ -14,9 +14,9 @@
 | Secondary category | Productivity |
 | Price | Free |
 | Support URL | `https://github.com/OpenFluxTeam/OpenFluxIOS` (публичный репозиторий; не бот и не чат) |
-| Privacy Policy URL | `https://openflux.dev/privacy` (опубликовать [PRIVACY.md](PRIVACY.md)) |
+| Privacy Policy URL | `https://github.com/OpenFluxTeam/OpenFluxIOS/blob/main/PRIVACY.md` ([PRIVACY.md](../../PRIVACY.md) в корне репозитория) |
 | Copyright | `2026 <юридическое название организации>` |
-| Age rating | 17+ (Unrestricted Web Access: встроенный браузер) |
+| Age rating | 16+ (Unrestricted Web Access: встроенный браузер) |
 
 ## Русский (ru)
 
@@ -83,43 +83,34 @@ Requires your own server or a profile from a server administrator.
 
 | Поле | Значение |
 |---|---|
-| Sign-in required | No (работает с профилем по ссылке, без аккаунта) |
+| Sign-in required | No (аккаунта в приложении нет; профиль добавляется ссылкой) |
 | Contact | имя, телефон, почта ответственного (заполнить) |
 | Demo profile | ссылка `openflux://…` на узел, который работает во время ревью (заполнить) |
 
-**Notes (English, вставить в поле Notes):**
+**Notes (English, поле Notes; текст для билда 128):**
 
 ```
-OpenFlux is a VPN client built on NEPacketTunnelProvider (bundle
-com.pnonetwork.openflux.tunnel). It tunnels the device's traffic, encrypted
-end to end (AES-GCM), to an exit node run by the user or their server
-administrator. The developer does not log or inspect tunneled traffic.
+OpenFlux is a free, open-source VPN client (NEPacketTunnelProvider, com.pnonetwork.openflux.tunnel). Source: https://github.com/OpenFluxTeam/OpenFluxIOS. It encrypts the device's traffic end to end (AES-256-GCM) and sends it to a server the user runs or was given access to.
 
 How to test:
-1. Launch the app, tap "+" and paste this profile link (or scan the QR code
-   in the attached screenshot):
-   openflux://<DEMO PROFILE — FILL IN>
-2. Tap Connect and allow the VPN configuration when iOS asks.
-3. The home screen shows "Connected" and the exit IP of our test node
-   (<TEST NODE IP — FILL IN>). Safari now browses through the tunnel.
-4. Control Center (iOS 18): the OpenFlux switch turns the same VPN on and off.
+1. Tap "+" → "Ссылка или файл" (Link or file), paste this link, tap "Добавить профиль" (Add profile):
+openflux://v1/<DEMO PROFILE: в App Store Connect, в репозиторий не кладём>
+2. Tap the power button and allow the VPN configuration.
+3. The home screen shows "Подключено" (Connected); under "Сведения" the external IP is our test server (d1.aurorix.net, 89.35.130.1).
 
-No account is needed to test. Signing in to an OpenFlux account is optional;
-iOS shows no purchases, prices or payment links.
+Business model:
+The app is free and nothing is sold in it or through it: no accounts, subscriptions, purchases, prices, ads or payment links, and it unlocks no paid content or features. It has no account screen and reads no subscription keys or service links; it does not contact any server of ours. Since build 128 the code of those screens, of app self-updates, of loadable (JS) transports and of the developer mode is not compiled into the iOS binary at all.
+A connection profile is an openflux:// link or QR code that describes a server (address, transports, encryption key), like a WireGuard or OpenVPN configuration. Users get it by (a) installing the open-source server on their own VPS with the in-app wizard "Свой сервер" (over SSH), or (b) from whoever runs the server (a friend, an employer's administrator). The app does not provide, sell or validate profiles.
+Our team also runs a separate hosted OpenFlux service outside the App Store (Telegram, desktop). The iOS app has no integration with it.
 
-Network Extension: the packet tunnel provider carries all IPv4 traffic and
-DNS through the tunnel; addresses the user marks as direct are excluded.
+VPN data:
+1. Collected using VPN: none. The developer does not receive, log, inspect or store tunneled traffic (no browsing history, DNS queries, visited addresses or content). The connection log stays on the device. No analytics or crash-reporting SDK. Outside the tunnel the app contacts only the transport services the user chose (they carry only encrypted packets) and api.ipify.org through the tunnel to show the exit IP. It does not contact any developer server.
+2. Purposes: we collect nothing through the VPN. Profiles and keys stay on the device (keys in the Keychain); an optional Yandex or Mail.ru session goes to the user's own server only after explicit consent, so it can use that service as its transport.
+3. Third parties: no user data is sold or shared. Traffic goes only to the server the user connected to; a document-service transport sees only encrypted packets. The developer stores nothing. Privacy policy: https://github.com/OpenFluxTeam/OpenFluxIOS/blob/main/PRIVACY.md
 
-Encryption: the app implements standard encryption (AES-GCM, HMAC-SHA256,
-scrypt) for the tunnel; it qualifies for the mass-market exemption
-(EAR 740.17(b)(1)).
-
-App Transport Security: NSAllowsArbitraryLoads is set because the app opens
-addresses the user enters for their own servers (subscription and profile
-URLs on plain HTTP, and the node installer's page on 127.0.0.1). The app's
-own services are HTTPS only.
-
-Camera: used only to scan profile QR codes.
+Encryption: standard algorithms only (AES-GCM, HMAC-SHA256, scrypt); not distributed in France.
+ATS: NSAllowsArbitraryLoads is set because users enter addresses of their own servers (plain-HTTP URLs, the node installer page on 127.0.0.1).
+Camera: only to scan profile QR codes.
 ```
 
 ## Скриншоты (6.9″, портрет)
