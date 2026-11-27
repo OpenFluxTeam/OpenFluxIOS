@@ -28,7 +28,7 @@ The same link is used on **both** the exit node and the client.
 The exit node needs root (raw sockets) and a Linux host with a public IP.
 
 ```bash
-sudo ./universal-bypass-tool \
+sudo ./openflux \
   --exit-node \
   --transport yandex \
   --url "https://disk.yandex.ru/i/XXXXXXXXXXXX"
@@ -65,7 +65,7 @@ forwarding.
 ### Desktop (SOCKS5)
 
 ```bash
-./universal-bypass-tool \
+./openflux \
   --client \
   --transport yandex \
   --url "https://disk.yandex.ru/i/XXXXXXXXXXXX" \

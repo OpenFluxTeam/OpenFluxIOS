@@ -1,6 +1,32 @@
-# OpenFlux
+# OpenFlux for iOS
 
 **English** | [Русский](README.ru.md)
+
+OpenFlux for iOS is a free, open-source VPN client. It encrypts the device's
+traffic and sends it to a server you run yourself, or to a server whose owner
+gave you a profile (an `openflux://` link or QR code). The app has no account,
+no purchases, no ads and no analytics, and it does not contact any server of
+the developer.
+
+- **Support:** open an [issue](https://github.com/OpenFluxTeam/OpenFluxIOS/issues)
+  or write to pasckalottiger@yepez-network.cyou.
+- **Privacy policy:** [PRIVACY.md](PRIVACY.md).
+- **License:** GPL-3.0-or-later, see [LICENSE](LICENSE).
+
+Where the code is:
+
+| Path | What |
+|---|---|
+| `ios-app/` | The Xcode project: the app, the packet tunnel extension, the Control Center switch |
+| `iosUi/` | The iOS side of the interface (Kotlin/Native) |
+| `shared/` | The interface shared with the other clients (submodule, Compose Multiplatform) |
+| `core/` | The tunnel itself (submodule, Go) |
+
+To build the app: `./build_ios_app.sh` (Xcode, JDK 17, Go).
+
+The rest of this file describes the command-line tunnel the project grew from.
+
+# OpenFlux core
 
 Network stack research tool. TCP tunnel with pluggable transports.
 
@@ -10,7 +36,7 @@ Client (SOCKS5) --> Transport --> Exit Node --> Internet
 ```
 
 ## Requirements
-1. Golang v. 1.26.3+ - is required for building desktop client / exit node binary (universal-bypass-tool);
+1. Golang v. 1.26.3+ - is required for building desktop client / exit node binary (openflux);
 2. Android Native Development Kit (NDK) v.27.0.12077973+ - is required for building Android client binary;
 3. XCode v. 26.6+ - is required for building iOS client binary;
 4. Linux VPS / VDS exit node.
@@ -52,7 +78,7 @@ OpenFlux/
 
 ```bash
 go mod tidy
-go build -o universal-bypass-tool .
+go build -o openflux .
 ```
 
 ## Build for Android (client binary)
@@ -89,7 +115,7 @@ Recommended (scoped to a dedicated egress IP):
 ```bash
 # give the box a second/alias IP for the tunnel, e.g. 203.0.113.10
 sudo iptables -A OUTPUT -p tcp --tcp-flags RST RST -s 203.0.113.10 -j DROP
-sudo ./universal-bypass-tool --exit-node --local-ip 203.0.113.10 \
+sudo ./openflux --exit-node --local-ip 203.0.113.10 \
     --url "YOUR_YANDEX_DOC_URL" --debug
 ```
 Even cleaner: run the exit node in its own network namespace / container so the
@@ -100,14 +126,14 @@ with no owning socket, so the owner match never fires.
 Host-wide fallback (only on a single-purpose box, understanding the trade-off):
 ```bash
 sudo iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP
-sudo ./universal-bypass-tool --exit-node --url "YOUR_YANDEX_DOC_URL" --debug
+sudo ./openflux --exit-node --url "YOUR_YANDEX_DOC_URL" --debug
 ```
 
 ### 1. Setting up desktop client:
 
 Setup commands for desktop client:
 ```bash
-./universal-bypass-tool --client --url "YOUR_YANDEX_DOC_URL" --socks5 :1080 --debug
+./openflux --client --url "YOUR_YANDEX_DOC_URL" --socks5 :1080 --debug
 ```
 
 Then set up SOCKS5 proxy in your browser at localhost:1080.
