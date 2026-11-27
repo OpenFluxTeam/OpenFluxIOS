@@ -87,7 +87,7 @@ Requires your own server or a profile from a server administrator.
 | Contact | имя, телефон, почта ответственного (заполнить) |
 | Demo profile | ссылка `openflux://…` на узел, который работает во время ревью (заполнить) |
 
-**Notes (English, поле Notes; текст для билда 128):**
+**Notes (English, поле Notes; текст для билда 129):**
 
 ```
 OpenFlux is a free, open-source VPN client (NEPacketTunnelProvider, com.pnonetwork.openflux.tunnel). Source: https://github.com/OpenFluxTeam/OpenFluxIOS. It encrypts the device's traffic end to end (AES-256-GCM) and sends it to a server the user runs or was given access to.
@@ -99,7 +99,7 @@ openflux://v1/<DEMO PROFILE: в App Store Connect, в репозиторий н�
 3. The home screen shows "Подключено" (Connected); under "Сведения" the external IP is our test server (d1.aurorix.net, 89.35.130.1).
 
 Business model:
-The app is free and nothing is sold in it or through it: no accounts, subscriptions, purchases, prices, ads or payment links, and it unlocks no paid content or features. It has no account screen and reads no subscription keys or service links; it does not contact any server of ours. Since build 128 the code of those screens, of app self-updates, of loadable (JS) transports and of the developer mode is not compiled into the iOS binary at all.
+The app is free and nothing is sold in it or through it: no accounts, subscriptions, purchases, prices, ads or payment links, and it unlocks no paid content or features. It has no account screen and reads no subscription keys or service links; it does not contact any server of ours. The code of those screens, of app self-updates and of the developer mode is not compiled into the iOS binary (since build 128), and neither is the script engine for loadable (JS) transports (since build 129): the app cannot install or run them.
 A connection profile is an openflux:// link or QR code that describes a server (address, transports, encryption key), like a WireGuard or OpenVPN configuration. Users get it by (a) installing the open-source server on their own VPS with the in-app wizard "Свой сервер" (over SSH), or (b) from whoever runs the server (a friend, an employer's administrator). The app does not provide, sell or validate profiles.
 Our team also runs a separate hosted OpenFlux service outside the App Store (Telegram, desktop). The iOS app has no integration with it.
 
